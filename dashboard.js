@@ -130,7 +130,7 @@ function renderFinance() {
 }
 
 function menuButton(action,text,content,classes='select-button',leading='',side='') {
-  return '<div class="menu-anchor"><button class="'+classes+'" data-menu="'+action+'" aria-label="'+text+'" aria-expanded="false">'+leading+(side==='icon'?'':'<span class="menu-label">'+text+'</span>')+'<span class="trailing">'+icon('chevron')+'</span></button><div class="menu'+(side==='icon'?' right':'')+'" hidden>'+content+'</div></div>';
+  return '<div class="menu-anchor"><button class="'+classes+'" data-menu="'+action+'" aria-label="'+text+'" aria-expanded="false">'+leading+(side==='icon'?'':'<span class="menu-label">'+text+'</span>')+'<span class="trailing">'+icon('chevron')+'</span></button><div class="menu'+(side?' right':'')+'" hidden>'+content+'</div></div>';
 }
 function initEndpoints(side) {
   const section = $('#'+side);
@@ -138,12 +138,19 @@ function initEndpoints(side) {
   const filterItems = '<strong>Region</strong>'+regions.map(r => '<label><input type="checkbox" data-region="'+r+'">'+r+'</label>').join('')+'<strong>Configured status</strong>'+[['all','Any status'],['active','Active'],['inactive','Inactive']].map(([value,label])=>'<label><input type="radio" name="'+side+'-status" data-status="'+value+'">'+label+'</label>').join('');
   const sortItems = Object.entries(sortOptions).map(([value,{label}])=>'<button data-sort="'+value+'">'+label+'</button>').join('');
   const columnItems = '<strong>Visible columns</strong>'+columns.slice(1,-1).map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'" checked>'+label+'</label>').join('');
-  section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2><div class="tools">'+menuButton('columns','Visible columns',columnItems,'tool',icon('columns'),'icon')+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
-    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+menuButton('sort','Sort by',sortItems,'select-button sort-button',icon('sort'))+'</div>'
+  const columnsMenu = side==='supply'
+    ? menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right')
+    : menuButton('columns','Visible columns',columnItems,'tool',icon('columns'),'icon');
+  section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2><div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
+    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+(side==='demand'?menuButton('sort','Sort by',sortItems,'select-button sort-button',icon('sort')):'')+'</div>'
     +'<div class="applied"></div><div class="table-scroll table-shell"><table class="endpoint-table" aria-label="'+title+' endpoints"></table></div><div class="pagination"></div>';
   renderEndpoints(side);
 }
 
+function sortDirection(side,state) {
+  if (state.sort==='original') return undefined;
+  return side==='supply'?state.direction:sortOptions[state.sort].direction;
+}
 function matching(side) {
   const state = states[side];
   const query = state.query.trim().toLowerCase();
@@ -151,9 +158,18 @@ function matching(side) {
     (!query || (row.name+' '+row.id).toLowerCase().includes(query)) &&
     (!state.regions.size || state.regions.has(row.region)) &&
     (state.status==='all' || row.active===(state.status==='active')));
-  const {direction} = sortOptions[state.sort];
-  if (direction==='ascending') rows.sort((a,b)=>a[state.sort].localeCompare(b[state.sort]));
-  else if (direction==='descending') rows.sort((a,b)=>(b[state.sort]??-Infinity)-(a[state.sort]??-Infinity));
+  const direction = sortDirection(side,state);
+  if (direction) {
+    const key = state.sort;
+    rows.sort((a,b)=>{
+      const first = key==='status'?Number(!a.active):a[key];
+      const second = key==='status'?Number(!b.active):b[key];
+      if (first==null) return second==null?0:1;
+      if (second==null) return -1;
+      const comparison = typeof first==='string'?first.localeCompare(second):first-second;
+      return direction==='ascending'?comparison:-comparison;
+    });
+  }
   return rows;
 }
 function incomingQpsCell(row,side) {
@@ -170,8 +186,11 @@ function incomingQpsCell(row,side) {
 
 function rowCell(key,row,side) {
   const id = safe(row.id);
+  const name = safe(row.name);
+  const nameTitle = side==='supply'?' title="'+name+'"':'';
+  const idTitle = side==='supply'?' title="'+id+'"':'';
   const cells = {
-    name:'<button class="link endpoint-name" data-inspect="'+id+'">'+safe(row.name)+'</button><span class="endpoint-id">'+id+'</span>',
+    name:'<button class="link endpoint-name" data-inspect="'+id+'"'+nameTitle+'>'+name+'</button><span class="endpoint-id"'+idTitle+'>'+id+'</span>',
     status:'<button class="status-switch" role="switch" aria-checked="'+row.active+'" aria-label="'+safe(row.name)+' configured status" data-toggle="'+id+'"><span class="switch-track"></span>'+(row.active?'Active':'Inactive')+'</button>',
     type:safe(row.type),region:safe(row.region),qps:incomingQpsCell(row,side),fill:rate(row.fill),win:rate(row.win),render:rate(row.render),rcpm:money(row.rcpm),
     details:'<button class="quiet inspect" data-inspect="'+id+'" aria-label="Inspect '+safe(row.name)+'">Inspect</button>',
@@ -184,14 +203,29 @@ function renderEndpoints(side) {
   state.page = Math.min(total,Math.max(1,state.page));
   const shown = rows.slice((state.page-1)*state.size,state.page*state.size);
   const visible = columns.filter(([key])=>!state.hidden.has(key));
-  const {column,direction} = sortOptions[state.sort];
+  const supply = side==='supply';
+  const direction = sortDirection(side,state);
   const arrow = direction==='ascending'?'↑':'↓';
-  const sortButton = section.querySelector('[data-menu="sort"]');
-  sortButton.querySelector('.menu-label').textContent = direction?'Sort: '+column+' '+arrow:'Sort by';
-  sortButton.setAttribute('aria-label',direction?'Sort: '+column+' '+direction:'Sort by');
-  section.querySelector('table').innerHTML = '<colgroup>'+visible.map(([, ,width])=>'<col style="width:'+width+'%">').join('')+'</colgroup><thead><tr>'+visible.map(([key,label,,align])=>{
+  if (!supply) {
+    const {column} = sortOptions[state.sort];
+    const sortButton = section.querySelector('[data-menu="sort"]');
+    sortButton.querySelector('.menu-label').textContent = direction?'Sort: '+column+' '+arrow:'Sort by';
+    sortButton.setAttribute('aria-label',direction?'Sort: '+column+' '+direction:'Sort by');
+  }
+  const scrollWeight = visible.slice(1).reduce((sum,[,,width])=>sum+width,0);
+  const table = section.querySelector('table');
+  if (supply) table.style.setProperty('--scroll-weight',scrollWeight);
+  const columnWidths = visible.map(([key,,width])=>{
+    if (!supply) return width+'%';
+    return key==='name'?'var(--pinned-column)':'calc((var(--table-width) - var(--pinned-column)) * '+(width/scrollWeight)+')';
+  });
+  table.innerHTML = '<colgroup>'+columnWidths.map(width=>'<col style="width:'+width+'">').join('')+'</colgroup><thead><tr>'+visible.map(([key,label,,align])=>{
     const active = direction && key===state.sort;
-    return '<th scope="col" class="'+(align??'')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+label+(active?' <span class="sort-indicator" aria-hidden="true">'+arrow+'</span>':'')+'</th>';
+    const indicator = '<span class="sort-indicator" aria-hidden="true">'+(active?arrow:'↕')+'</span>';
+    const content = supply && key!=='details'
+      ? '<button class="column-sort" data-sort-column="'+key+'" aria-label="'+label+', sort '+(active&&direction==='ascending'?'descending':'ascending')+'">'+label+indicator+'</button>'
+      : label+(active?' '+indicator:'');
+    return '<th scope="col" class="'+(align??'')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+content+'</th>';
   }).join('')+'</tr></thead><tbody>'
     +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+(align??'')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
   const chip = (key,value,label) => '<button class="chip" data-chip="'+key+'" data-value="'+safe(value)+'" aria-label="Remove '+safe(label)+' filter">'+safe(label)+icon('close')+'</button>';
@@ -311,6 +345,10 @@ document.addEventListener('click', async event => {
     const row = endpointLists[side].find(r=>r.id===d.toggle);
     row.active=!row.active;
     toast(row.active?'Demo endpoint enabled':'Demo endpoint disabled');
+  } else if (d.sortColumn) {
+    state.direction=state.sort===d.sortColumn && state.direction==='ascending'?'descending':'ascending';
+    state.sort=d.sortColumn;
+    state.page=1;
   } else if (d.sort) {
     state.sort=d.sort;
     state.page=1;
@@ -325,6 +363,7 @@ document.addEventListener('click', async event => {
     $('#'+side+' input[type=search]').value='';
   } else return;
   renderEndpoints(side);
+  if (d.sortColumn) $('#'+side+' [data-sort-column="'+d.sortColumn+'"]').focus({preventScroll:true});
   if (d.sort) $('#'+side+' [data-menu="sort"]').focus();
 });
 

@@ -108,6 +108,26 @@ h1,h2,h3,p{margin:0}
 .endpoint-table th:first-child,.endpoint-table td:first-child{padding-left:16px}
 .endpoint-table .num{text-align:right}
 .endpoint-name{font-weight:500}
+#supply .table-shell{container-type:inline-size;scroll-padding-inline-start:190px}
+#supply .endpoint-table{
+  --pinned-column:190px;
+  --table-width:max(100cqw,calc(var(--pinned-column) + var(--scroll-weight) * 10.25px));
+  width:var(--table-width);
+  min-width:0;
+  border-collapse:separate;
+  border-spacing:0
+}
+#supply .endpoint-table :is(th,td):first-child:not(.empty){
+  position:sticky;left:0;z-index:1;
+  background:var(--paper);box-shadow:inset -1px 0 var(--border)
+}
+#supply .endpoint-table th:first-child{background:var(--neutral)}
+#supply :is(.endpoint-name,.endpoint-id[title]){display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#supply .endpoint-name{width:100%;text-align:left}
+#supply .endpoint-name:focus-visible{white-space:normal;overflow-wrap:anywhere}
+.column-sort{gap:4px;border-radius:3px;padding-block:4px}
+.column-sort .sort-indicator{color:var(--secondary);margin:0}
+[aria-sort] .column-sort .sort-indicator{color:var(--blue)}
 .endpoint-id{display:block;color:var(--secondary);font-size:12px;line-height:16px}
 .load-share{color:var(--muted);white-space:normal}
 .status-switch{color:var(--quiet-text);gap:5px}
@@ -147,5 +167,6 @@ dialog::backdrop{background:#1a11335c}
 .summary th,.finance-card,.endpoint-table th,.status-switch,.chip,.search,.select-button,.inspect,.link{font-weight:500}
 .global nav button{gap:8px;line-height:14px}
 .tool[data-menu=columns]{width:56px;padding:0 8px;gap:5px}
+#supply .tool[data-menu=columns]{width:auto}
 .tool[data-menu=columns] .trailing .icon{width:10px}
 .finance-delta{margin-top:19px}

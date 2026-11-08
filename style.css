@@ -52,6 +52,11 @@ table{border-collapse:collapse;text-align:left;width:100%}
 .badge.neutral{background:#e9edf3;color:var(--secondary)}
 .badge.warning{background:var(--amber);color:var(--warning);padding-right:4px}
 .badge.warning .icon{width:15px;height:15px}
+.badge.warning:focus-visible{outline:2px solid var(--warning);outline-offset:2px}
+.limit-tip{position:relative;display:inline-flex}
+.limit-tooltip{position:absolute;z-index:2;right:0;bottom:100%;padding-bottom:6px;visibility:hidden}
+.limit-tooltip span{display:block;padding:5px 8px;border-radius:4px;background:var(--ink);color:var(--paper);line-height:16px}
+.limit-tip:not([data-dismissed]):is(:hover,:focus-within) .limit-tooltip{visibility:visible}
 .finance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
 .finance .tabs{flex:1;justify-content:space-between}
 .finance .tabs button{height:30px;flex:1;padding:0 4px}
@@ -104,8 +109,7 @@ h1,h2,h3,p{margin:0}
 .endpoint-table .num{text-align:right}
 .endpoint-name{font-weight:500}
 .endpoint-id{display:block;color:var(--secondary);font-size:12px;line-height:16px}
-.load-share{white-space:normal}
-.load-share strong{color:var(--ink);font-weight:600}
+.load-share{color:var(--muted);white-space:normal}
 .status-switch{color:var(--quiet-text);gap:5px}
 .switch-track{display:inline-flex;align-items:center;width:32px;height:16px;padding:2px;border-radius:10px;background:#a2a1ad}
 .switch-track::before{content:"";height:12px;width:12px;border-radius:50%;background:#fff}
@@ -140,7 +144,6 @@ dialog::backdrop{background:#1a11335c}
 .endpoints:fullscreen{overflow:auto;border:0;border-radius:0;align-content:start;padding:24px}
 @media(max-width:1000px){.overview{grid-template-columns:1fr}.global nav{gap:20px}}
 @media(max-width:620px){.application{grid-template-columns:minmax(0,1fr)}.sidebar{display:none}.workspace{padding:12px}.global{gap:20px;padding-inline:12px}.monitoring,.endpoints{padding-inline:12px}.endpoint-head{gap:8px}.endpoint-head h2{font-size:20px}.endpoint-head .tools{gap:6px}.endpoint-head .export{padding:0 8px}.finance-head{gap:8px}.finance .tabs button+button{margin-left:5px}.finance-card strong{font-size:21px}.controls .search{width:100%}}
-.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .summary th,.finance-card,.endpoint-table th,.status-switch,.chip,.search,.select-button,.inspect,.link{font-weight:500}
 .global nav button{gap:8px;line-height:14px}
 .tool[data-menu=columns]{width:56px;padding:0 8px;gap:5px}

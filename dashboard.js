@@ -91,11 +91,17 @@ function tabs(kind, items, selected) {
   container.innerHTML = items.map((item,i) => '<button id="'+kind+'-tab-'+i+'" role="tab" type="button" data-tab="'+kind+'" data-index="'+i+'" aria-controls="'+kind+'-content" aria-selected="'+(selected===i)+'" tabindex="'+(selected===i?0:-1)+'">'+(item.icon?icon(item.icon):'')+item.name+'</button>').join('');
   $('#'+kind+'-content').setAttribute('aria-labelledby',kind+'-tab-'+selected);
 }
-function utilization(value,limit) {
+function utilization(value,limit,tooltipId) {
   if (!limit) return '';
   const percent = (value / limit * 100).toFixed(2);
-  const warning = value / limit >= .95;
-  return '<span class="badge'+(warning?' warning':'')+'"'+(warning?' title="Approaching illustrative limit"':'')+'>'+percent+'%'+(warning?icon('warning')+'<span class="visually-hidden"> · Approaching limit</span>':'')+'</span>';
+  if (value / limit < .95) return '<span class="badge">'+percent+'%</span>';
+
+  const headroom = limit-value;
+  const risk = headroom<0?'Over limit · '+number(-headroom)+' req/s above plan limit':
+    headroom===0?'Plan limit reached · 0 req/s headroom':
+    'Approaching limit · '+number(headroom)+' req/s headroom';
+  return '<span class="limit-tip"><span class="badge warning" tabindex="0" aria-describedby="'+tooltipId+'">'+percent+'%'+icon('warning')+'</span>'
+    +'<span class="limit-tooltip" id="'+tooltipId+'" role="tooltip"><span>'+risk+'</span></span></span>';
 }
 function updated(kind) {
   $('#'+kind+'-updated').innerHTML = 'Updated '+times[kind]+' UTC <button data-refresh="'+kind+'" aria-label="Refresh '+(kind==='traffic'?'traffic overview':'financial comparison')+'">'+icon('refresh')+'</button>';
@@ -103,8 +109,16 @@ function updated(kind) {
 function renderTraffic() {
   const view = trafficViews[trafficTab];
   tabs('traffic',trafficViews,trafficTab);
-  $('#traffic-content').innerHTML = '<table class="summary"><colgroup><col style="width:16.67%"><col style="width:20.65%"><col style="width:22.25%"><col style="width:20.3%"><col></colgroup><thead><tr><th scope="col">'+view.first+'</th><th scope="col">Incoming QPS</th><th scope="col">Valid Incoming QPS</th><th scope="col">Outgoing QPS</th><th scope="col">Limit</th></tr></thead><tbody>'+view.rows.map(([name,incoming,valid,outgoing,limit,main]) =>
-    '<tr><td>'+name+(main?'<span class="badge neutral">Main</span>':'')+'</td><td>'+number(incoming)+utilization(incoming,limit)+'</td><td>'+number(valid)+'</td><td>'+number(outgoing)+utilization(outgoing,limit)+'</td><td>'+number(limit)+'</td></tr>').join('')+'</tbody></table>';
+  const content = $('#traffic-content');
+  content.innerHTML = '<table class="summary"><colgroup><col style="width:16.67%"><col style="width:20.65%"><col style="width:22.25%"><col style="width:20.3%"><col></colgroup><thead><tr><th scope="col">'+view.first+'</th><th scope="col">Incoming QPS</th><th scope="col">Valid Incoming QPS</th><th scope="col">Outgoing QPS</th><th scope="col">Plan Limit</th></tr></thead><tbody>'+view.rows.map(([name,incoming,valid,outgoing,limit,main],index) =>
+    '<tr><td>'+name+(main?'<span class="badge neutral">Main</span>':'')+'</td><td>'+number(incoming)+utilization(incoming,limit,'incoming-risk-'+index)+'</td><td>'+number(valid)+'</td><td>'+number(outgoing)+utilization(outgoing,limit,'outgoing-risk-'+index)+'</td><td>'+number(limit)+'</td></tr>').join('')+'</tbody></table>';
+  for (const tip of content.querySelectorAll('.limit-tip')) {
+    const resetDismissal = () => {
+      if (!tip.matches(':hover, :focus-within')) tip.removeAttribute('data-dismissed');
+    };
+    tip.addEventListener('pointerleave',resetDismissal);
+    tip.addEventListener('focusout',() => queueMicrotask(resetDismissal));
+  }
   updated('traffic');
 }
 function renderFinance() {
@@ -151,7 +165,7 @@ function incomingQpsCell(row,side) {
     return value+'<span class="endpoint-id load-share">Share unavailable</span>';
   }
   const share = shareFormat.format(row.qps/total);
-  return value+'<span class="endpoint-id load-share"><strong>'+share+'</strong> of total load</span>';
+  return value+'<span class="endpoint-id load-share">'+share+' load</span>';
 }
 
 function rowCell(key,row,side) {
@@ -357,6 +371,8 @@ document.addEventListener('keydown',event=>{
     const next=event.key==='Home'?0:event.key==='End'?last:(i+(event.key==='ArrowRight'?1:last))%(last+1);
     selectTab(tab.dataset.tab,next);
   } else if (event.key==='Escape') {
+    const tip = document.querySelector('.limit-tip:not([data-dismissed]):is(:hover, :focus-within)');
+    if (tip) tip.setAttribute('data-dismissed','');
     const trigger=document.querySelector('[data-menu][aria-expanded=true]');
     if (trigger) {closeMenus();trigger.focus();}
   }

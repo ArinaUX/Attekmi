@@ -46,7 +46,9 @@ const demandOptional = [
   ['validBid','Valid bid rate',10,'num'],['spendLimit','Spend limit',10,'num'],['margin','Margin',8,'num'],
   ['email','Email',13],['comment','Comment',14],
 ];
-const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set(side==='demand'?demandOptional.map(([key])=>key):['validIncoming'])}]));
+const defaultHiddenColumns = {supply:['validIncoming'],demand:demandOptional.map(([key])=>key)};
+const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set(defaultHiddenColumns[side])}]));
+const statusLabels = ['On','Off'];
 const endpointColumns = {
   supply: [
     ['name','Name / ID',20.65],['status','Status',10.2],['type','Type',7],['region','Region',8],
@@ -160,11 +162,12 @@ function menuButton(action,text,content,classes,leading,placement='') {
 function initEndpoints(side) {
   const section = $('#'+side);
   const title = side==='supply'?'Supply Side':'Demand Side';
-  const [on,off] = statusLabels(side);
+  const [on,off] = statusLabels;
   const filterItems = '<strong>Region</strong>'+regions.map(r => '<label><input type="checkbox" data-region="'+r+'">'+r+'</label>').join('')+'<strong>Configured status</strong>'+[['all','Any status'],['active',on],['inactive',off]].map(([value,label])=>'<label><input type="radio" name="'+side+'-status" data-status="'+value+'">'+label+'</label>').join('');
-  const columnItems = '<strong>Visible columns</strong>'+endpointColumns[side].filter(([key])=>key!=='name'&&key!=='details').map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'"'+(states[side].hidden.has(key)?'':' checked')+'>'+label+'</label>').join('');
+  const columnItems = '<div class="column-menu-head"><strong>Visible columns</strong><button type="button" class="icon-button reset-columns" data-reset-columns aria-label="Reset columns to default" title="Reset columns to default">'+icon('refresh')+'</button></div>'
+    +endpointColumns[side].filter(([key])=>key!=='name'&&key!=='details').map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'">'+label+'</label>').join('');
   const columnsMenu = menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right');
-  section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2>'+(side==='demand'?'<span class="badge neutral demo-label">Demo data</span>':'')+'<div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
+  section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2><span class="badge neutral demo-label">Demo data</span><div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
     +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+'<span class="sort-summary" role="status"></span></div>'
     +'<div class="applied"></div><div class="table-scroll table-shell"><table class="endpoint-table" aria-label="'+title+' endpoints"></table></div><div class="pagination"></div>';
   renderEndpoints(side);
@@ -189,9 +192,6 @@ function matching(side) {
     });
   }
   return rows;
-}
-function statusLabels(side) {
-  return side==='supply'?['Active','Inactive']:['On','Off'];
 }
 function ratio(value,total) {
   return value==null || !(total>0)?null:value/total;
@@ -218,7 +218,7 @@ function qpsCell(value,total,showBar=false) {
 function rowCell(key,row,side) {
   const id = safe(row.id);
   const name = safe(row.name);
-  const [on,off] = statusLabels(side);
+  const [on,off] = statusLabels;
   const cells = {
     name:'<button class="link endpoint-name" data-inspect="'+id+'" title="'+name+'">'+name+'</button><span class="endpoint-id" title="'+id+'">'+id+'</span>',
     status:'<button class="status-switch" role="switch" aria-checked="'+row.active+'" aria-label="'+name+', '+(row.active?on:off)+'" data-toggle="'+id+'"><span class="switch-track"></span>'+(row.active?on:off)+'</button>',
@@ -264,7 +264,7 @@ function renderEndpoints(side) {
   }).join('')+'</tr></thead><tbody>'
     +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
   bindTooltipDismissal(table);
-  const [on,off] = statusLabels(side);
+  const [on,off] = statusLabels;
   const chip = (key,value,label) => '<button class="chip" data-chip="'+key+'" data-value="'+safe(value)+'" aria-label="Remove '+safe(label)+' filter">'+safe(label)+icon('close')+'</button>';
   section.querySelector('.applied').innerHTML = '<span class="match" aria-live="polite">'+rows.length+' matching endpoint'+(rows.length===1?'':'s')+'</span>'
     +(side==='demand' && state.regions.size===regions.length?chip('all-regions','','Region: All ('+regions.length+')'):[...state.regions].map(r=>chip('region',r,'Region: '+r)).join(''))
@@ -277,6 +277,7 @@ function renderEndpoints(side) {
     +'<select aria-label="Endpoints per page" data-size>'+[2,3,25,50].map(n=>'<option value="'+n+'" '+(n===state.size?'selected':'')+'>'+n+'/page</option>').join('')+'</select>';
   for (const input of section.querySelectorAll('[data-region]')) input.checked = state.regions.has(input.dataset.region);
   for (const input of section.querySelectorAll('[data-status]')) input.checked = state.status===input.dataset.status;
+  for (const input of section.querySelectorAll('[data-column]')) input.checked = !state.hidden.has(input.dataset.column);
 }
 
 let toastTimer;
@@ -310,7 +311,7 @@ function addEndpoint(side) {
   dialog.querySelector('input').focus();
 }
 function exportCsv(side) {
-  const [on,off] = statusLabels(side);
+  const [on,off] = statusLabels;
   const rows = matching(side);
   const data = side==='supply'
     ? [['Name','ID','Status','Type','Region','Incoming QPS','Valid rate','Valid QPS','Fill rate','Win rate','Render rate','rCPM'],...rows.map(r=>[r.name,r.id,r.active?on:off,r.type,r.region,r.qps,metricValue(r,'validRate')==null?null:percentage(metricValue(r,'validRate')),r.validIncoming,r.fill,r.win,r.render,r.rcpm])]
@@ -385,7 +386,9 @@ document.addEventListener('click', async event => {
     } catch {toast('Fullscreen is unavailable in this browser');}
     return;
   }
-  if (d.toggle) {
+  if (d.resetColumns!==undefined) {
+    state.hidden = new Set(defaultHiddenColumns[side]);
+  } else if (d.toggle) {
     const row = endpointLists[side].find(r=>r.id===d.toggle);
     row.active=!row.active;
     toast(row.active?'Demo endpoint enabled':'Demo endpoint disabled');

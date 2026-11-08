@@ -4,6 +4,7 @@ const paths = {
   plus: '<path d="M8 2v12M2 8h12"/>',
   close: '<path d="m4 4 8 8m0-8-8 8"/>',
   search: '<circle cx="6.7" cy="6.7" r="4.4"/><path d="m10 10 3.5 3.5"/>',
+  pageChevron: '<path d="m6 3 5 5-5 5"/>',
   filter: '<path d="M2 3h12L9 8v4l-2 1V8z"/>',
   columns: '<path d="M0 2h7m2 0h7M0 6h7m2 0h7M0 10h7m2 0h7M0 14h7m2 0h7"/>',
   external: '<path d="M3 12 12 3M6 3h6v6M2 14h12"/>',
@@ -49,7 +50,7 @@ const demandOptional = [
 const defaultHiddenColumns = {supply:['validIncoming'],demand:demandOptional.map(([key])=>key)};
 const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(),types:new Set(),sort:'original',size:25,page:1,hidden:new Set(defaultHiddenColumns[side])}]));
 const statusLabels = ['On','Off'];
-const unsortableColumns = new Set(['type','region','details']);
+const unsortableColumns = new Set(['name','type','region','details']);
 const identityColumns = [
   ['name','Name / ID',190],['status','Status',94],['type','Type',77],['region','Region',88],
 ];
@@ -173,8 +174,8 @@ function initEndpoints(side) {
     +endpointColumns[side].filter(([key])=>key!=='name'&&key!=='details').map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'">'+label+'</label>').join('');
   const columnsMenu = menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right');
   section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2><span class="badge neutral demo-label">Demo data</span><div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
-    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+'<span class="sort-summary" role="status"></span></div>'
-    +'<div class="applied"></div><div class="table-scroll table-shell"><table class="endpoint-table" aria-label="'+title+' endpoints"></table></div><div class="pagination"></div>';
+    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+'<span class="sort-summary" role="status"></span></div>'
+    +'<div class="applied"></div><div class="table-scroll table-shell"><table class="endpoint-table" aria-label="'+title+' endpoints"></table></div><nav class="pagination" aria-label="'+title+' pagination"></nav>';
   renderEndpoints(side);
 }
 
@@ -243,13 +244,14 @@ function renderEndpoints(side) {
   const state = states[side], section = $('#'+side), rows = matching(side);
   const total = Math.max(1,Math.ceil(rows.length/state.size));
   state.page = Math.min(total,Math.max(1,state.page));
-  const shown = rows.slice((state.page-1)*state.size,state.page*state.size);
+  const start = (state.page-1)*state.size;
+  const shown = rows.slice(start,start+state.size);
   const visible = endpointColumns[side].filter(([key])=>!state.hidden.has(key));
   const direction = state.sort==='original'?null:state.direction;
   const arrow = direction==='ascending'?'↑':'↓';
   const sortedLabel = endpointColumns[side].find(([key])=>key===state.sort)?.[1];
   const sortSummary = section.querySelector('.sort-summary');
-  const sortText = direction?'Sort: '+sortedLabel+' '+arrow:'Sort by column header';
+  const sortText = direction?'Sort: '+sortedLabel+' '+arrow:'';
   if (sortSummary.textContent!==sortText) sortSummary.textContent=sortText;
   const fixedWidth = visible.reduce((sum,[key,,width])=>sum+(fixedColumnKeys.has(key)?width:0),0);
   const scrollWeight = visible.reduce((sum,[key,,width])=>sum+(fixedColumnKeys.has(key)?0:width),0);
@@ -277,11 +279,13 @@ function renderEndpoints(side) {
     +(side==='demand' && state.regions.size===regions.length?chip('all-regions','','Region: All ('+regions.length+')'):[...state.regions].map(r=>chip('region',r,'Region: '+r)).join(''))
     +[...state.types].map(type=>chip('type',type,'Type: '+type)).join('')
     +(state.regions.size||state.types.size||state.query?'<button class="link" data-clear>Clear filters</button>':'');
-  const pages = Array.from({length:Math.max(3,total)},(_,i)=>i+1);
-  section.querySelector('.pagination').innerHTML = '<button aria-label="Previous page" data-page="'+(state.page-1)+'" '+(state.page===1?'disabled':'')+'>‹</button>'
-    +pages.map(p=>'<button aria-label="Page '+p+'" data-page="'+p+'" '+(p===state.page?'aria-current="page"':'')+' '+(p>total?'disabled':'')+'>'+p+'</button>').join('')
-    +'<button aria-label="Next page" data-page="'+(state.page+1)+'" '+(state.page===total?'disabled':'')+'>›</button>'
-    +'<select aria-label="Endpoints per page" data-size>'+[2,3,25,50].map(n=>'<option value="'+n+'" '+(n===state.size?'selected':'')+'>'+n+'/page</option>').join('')+'</select>';
+  const range = shown.length?number(start+1)+'–'+number(start+shown.length)+' of '+number(rows.length):'0 results';
+  const pages = Array.from({length:rows.length?total:0},(_,i)=>i+1);
+  section.querySelector('.pagination').innerHTML = '<span class="page-range">'+range+'</span><div class="page-controls">'
+    +'<div class="page-buttons"><button class="page-prev" aria-label="Previous page" data-page="'+(state.page-1)+'" '+(state.page===1?'disabled':'')+'>'+icon('pageChevron')+'</button>'
+    +pages.map(p=>'<button aria-label="Page '+p+'" data-page="'+p+'" '+(p===state.page?'aria-current="page"':'')+'>'+p+'</button>').join('')
+    +'<button aria-label="Next page" data-page="'+(state.page+1)+'" '+(state.page===total?'disabled':'')+'>'+icon('pageChevron')+'</button></div>'
+    +'<label class="page-size">Rows per page <select data-size>'+[2,3,25,50].map(n=>'<option value="'+n+'" '+(n===state.size?'selected':'')+'>'+n+'</option>').join('')+'</select></label></div>';
   for (const input of section.querySelectorAll('[data-region]')) input.checked = state.regions.has(input.dataset.region);
   for (const input of section.querySelectorAll('[data-type]')) input.checked = state.types.has(input.dataset.type);
   for (const input of section.querySelectorAll('[data-column]')) input.checked = !state.hidden.has(input.dataset.column);

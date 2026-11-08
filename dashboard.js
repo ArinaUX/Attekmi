@@ -47,8 +47,9 @@ const demandOptional = [
   ['email','Email',13],['comment','Comment',14],
 ];
 const defaultHiddenColumns = {supply:['validIncoming'],demand:demandOptional.map(([key])=>key)};
-const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set(defaultHiddenColumns[side])}]));
+const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(),types:new Set(),sort:'original',size:25,page:1,hidden:new Set(defaultHiddenColumns[side])}]));
 const statusLabels = ['On','Off'];
+const unsortableColumns = new Set(['type','region','details']);
 const identityColumns = [
   ['name','Name / ID',190],['status','Status',94],['type','Type',77],['region','Region',88],
 ];
@@ -166,8 +167,8 @@ function menuButton(action,text,content,classes,leading,placement='') {
 function initEndpoints(side) {
   const section = $('#'+side);
   const title = side==='supply'?'Supply Side':'Demand Side';
-  const [on,off] = statusLabels;
-  const filterItems = '<strong>Region</strong>'+regions.map(r => '<label><input type="checkbox" data-region="'+r+'">'+r+'</label>').join('')+'<strong>Configured status</strong>'+[['all','Any status'],['active',on],['inactive',off]].map(([value,label])=>'<label><input type="radio" name="'+side+'-status" data-status="'+value+'">'+label+'</label>').join('');
+  const filterItems = '<strong>Region</strong>'+regions.map(region=>'<label><input type="checkbox" data-region="'+region+'">'+region+'</label>').join('')
+    +'<strong>Type</strong>'+types.map(type=>'<label><input type="checkbox" data-type="'+type+'">'+type+'</label>').join('');
   const columnItems = '<div class="column-menu-head"><strong>Visible columns</strong><button type="button" class="icon-button reset-columns" data-reset-columns aria-label="Reset columns to default" title="Reset columns to default">'+icon('refresh')+'</button></div>'
     +endpointColumns[side].filter(([key])=>key!=='name'&&key!=='details').map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'">'+label+'</label>').join('');
   const columnsMenu = menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right');
@@ -183,7 +184,7 @@ function matching(side) {
   const rows = endpointLists[side].filter(row =>
     (!query || (row.name+' '+row.id).toLowerCase().includes(query)) &&
     (!state.regions.size || state.regions.has(row.region)) &&
-    (state.status==='all' || row.active===(state.status==='active')));
+    (!state.types.size || state.types.has(row.type)));
   if (state.sort!=='original') {
     const key = state.sort;
     rows.sort((a,b)=>{
@@ -261,28 +262,28 @@ function renderEndpoints(side) {
   table.innerHTML = '<colgroup>'+columnWidths.map(width=>'<col style="width:'+width+'">').join('')+'</colgroup><thead><tr>'+visible.map(([key,label,,align])=>{
     const active = direction && key===state.sort;
     const indicator = '<span class="sort-indicator" aria-hidden="true">'+(active?arrow:'↕')+'</span>';
-    const content = key!=='details'
+    const sortable = !unsortableColumns.has(key);
+    const content = sortable
       ? '<button class="column-sort" data-sort-column="'+key+'" aria-label="'+label+', sort '+(active&&direction==='ascending'?'descending':'ascending')+'">'+label+indicator+'</button>'
       : label;
     const definition = metricDefinitions[side][key];
     const info = definition?metricTooltip(side+'-definition-'+key,icon('info'),definition,'metric-info',label+' definition',true):'';
-    return '<th scope="col" class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'"'+(key==='details'?'':' aria-sort="'+(active?direction:'none')+'"')+'>'+info+content+'</th>';
+    return '<th scope="col" class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'"'+(sortable?' aria-sort="'+(active?direction:'none')+'"':'')+'>'+info+content+'</th>';
   }).join('')+'</tr></thead><tbody>'
     +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
   bindTooltipDismissal(table);
-  const [on,off] = statusLabels;
   const chip = (key,value,label) => '<button class="chip" data-chip="'+key+'" data-value="'+safe(value)+'" aria-label="Remove '+safe(label)+' filter">'+safe(label)+icon('close')+'</button>';
   section.querySelector('.applied').innerHTML = '<span class="match" aria-live="polite">'+rows.length+' matching endpoint'+(rows.length===1?'':'s')+'</span>'
     +(side==='demand' && state.regions.size===regions.length?chip('all-regions','','Region: All ('+regions.length+')'):[...state.regions].map(r=>chip('region',r,'Region: '+r)).join(''))
-    +(state.status==='all'?'':chip('status',state.status,'Configured: '+(state.status==='active'?on:off)))
-    +(state.regions.size||state.status!=='all'||state.query?'<button class="link" data-clear>Clear filters</button>':'');
+    +[...state.types].map(type=>chip('type',type,'Type: '+type)).join('')
+    +(state.regions.size||state.types.size||state.query?'<button class="link" data-clear>Clear filters</button>':'');
   const pages = Array.from({length:Math.max(3,total)},(_,i)=>i+1);
   section.querySelector('.pagination').innerHTML = '<button aria-label="Previous page" data-page="'+(state.page-1)+'" '+(state.page===1?'disabled':'')+'>‹</button>'
     +pages.map(p=>'<button aria-label="Page '+p+'" data-page="'+p+'" '+(p===state.page?'aria-current="page"':'')+' '+(p>total?'disabled':'')+'>'+p+'</button>').join('')
     +'<button aria-label="Next page" data-page="'+(state.page+1)+'" '+(state.page===total?'disabled':'')+'>›</button>'
     +'<select aria-label="Endpoints per page" data-size>'+[2,3,25,50].map(n=>'<option value="'+n+'" '+(n===state.size?'selected':'')+'>'+n+'/page</option>').join('')+'</select>';
   for (const input of section.querySelectorAll('[data-region]')) input.checked = state.regions.has(input.dataset.region);
-  for (const input of section.querySelectorAll('[data-status]')) input.checked = state.status===input.dataset.status;
+  for (const input of section.querySelectorAll('[data-type]')) input.checked = state.types.has(input.dataset.type);
   for (const input of section.querySelectorAll('[data-column]')) input.checked = !state.hidden.has(input.dataset.column);
 }
 
@@ -406,10 +407,10 @@ document.addEventListener('click', async event => {
   else if (d.chip) {
     if (d.chip==='region') state.regions.delete(d.value);
     else if (d.chip==='all-regions') state.regions.clear();
-    else state.status='all';
+    else if (d.chip==='type') state.types.delete(d.value);
     state.page=1;
   } else if (d.clear!==undefined) {
-    state.regions.clear();state.status='all';state.query='';state.page=1;
+    state.regions.clear();state.types.clear();state.query='';state.page=1;
     $('#'+side+' input[type=search]').value='';
   } else return;
   renderEndpoints(side);
@@ -433,8 +434,9 @@ document.addEventListener('change',event=>{
   const state=states[side], d=input.dataset;
   if (d.region) {
     if (input.checked) state.regions.add(d.region);else state.regions.delete(d.region);
-  } else if (d.status) state.status=d.status;
-  else if (d.column) {
+  } else if (d.type) {
+    if (input.checked) state.types.add(d.type);else state.types.delete(d.type);
+  } else if (d.column) {
     if (input.checked) state.hidden.delete(d.column);else state.hidden.add(d.column);
   } else if (d.size!==undefined) state.size=Number(input.value);
   else return;
@@ -451,7 +453,7 @@ document.addEventListener('submit',event=>{
   const id=(side==='supply'?'SSP':'DSP')+'-DEMO-'+(endpointLists[side].length+1);
   endpointLists[side].unshift({name,id,type:fields.get('type'),region:fields.get('region'),active:true,qps:null,fill:null,win:null,render:null,rcpm:null});
   const state=states[side];
-  state.query='';state.regions.clear();state.status='all';state.sort='original';state.page=1;
+  state.query='';state.regions.clear();state.types.clear();state.sort='original';state.page=1;
   $('#'+side+' input[type=search]').value='';
   dialog.close();renderEndpoints(side);toast('Demo endpoint added');
 });

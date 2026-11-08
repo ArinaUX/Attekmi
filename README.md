@@ -6,6 +6,8 @@ An interactive, static recreation of the Attekmi Figma dashboard. All figures an
 
 Open `index.html` in a browser, or serve the folder with `python3 -m http.server 8765`.
 
+For fixture checks, open `http://127.0.0.1:8765/?check=1` and look for `Demo data checks passed` in the browser console. Run `node --check dashboard.js` and `node --check icons.js` to check JavaScript syntax.
+
 ## Deploy on Vercel
 
 Import the GitHub repository, keep the framework preset as **Other**, and deploy the repository root with the default build and output settings. The project requires no install, build command, environment variables, or API.

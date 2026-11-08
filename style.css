@@ -55,11 +55,12 @@ table{border-collapse:collapse;text-align:left;width:100%}
 .badge.warning:focus-visible{outline:2px solid var(--warning);outline-offset:2px}
 .limit-tip{position:relative;display:inline-flex}
 .limit-tooltip{position:absolute;z-index:2;right:0;bottom:100%;padding-bottom:6px;visibility:hidden}
-.limit-tooltip span{display:block;padding:5px 8px;border-radius:4px;background:var(--ink);color:var(--paper);line-height:16px}
+.tooltip-content{display:block;padding:5px 8px;border-radius:4px;background:var(--ink);color:var(--paper);line-height:16px}
+.assumption-pill{display:inline-block;padding:0 4px;border-radius:3px;background:var(--neutral);color:var(--ink);font-weight:600}
 .limit-tip:not([data-dismissed]):is(:hover,:focus-within) .limit-tooltip{visibility:visible}
 .definition-tip{margin-inline-end:4px;vertical-align:middle}
 .definition-tip .limit-tooltip{top:100%;bottom:auto;padding:6px 0 0;width:220px;white-space:normal;text-align:left}
-.metric-info{display:inline-flex;color:var(--blue);cursor:help}
+.metric-info{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;color:var(--blue);cursor:help}
 .metric-info .icon{width:13px;height:13px}
 .metric-info:focus-visible,.timeout-badge:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .finance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
@@ -84,9 +85,11 @@ h1,h2,h3,p{margin:0}
 .tool{height:32px;padding:0 10px;border:1px solid var(--field);border-radius:4px}
 .export{height:32px;padding:0 16px}
 .controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sort-summary{padding-inline:6px;color:var(--secondary);font-size:12px}
 .search,.select-button{border:1px solid var(--field);height:32px;border-radius:4px;padding:0 8px;display:flex;align-items:center;gap:8px;color:var(--quiet-text)}
 .search{width:256px}
 .search input{min-width:0;flex:1;background:transparent;border:0;padding:0;outline:none;color:var(--ink)}
+.search:has(input:focus-visible){outline:2px solid var(--active);outline-offset:2px}
 .search input::placeholder{color:var(--quiet-text);opacity:1}
 .search .trailing,.select-button .trailing{margin-left:auto;color:var(--ink)}
 .select-button{width:146px;justify-content:flex-start}
@@ -130,19 +133,21 @@ h1,h2,h3,p{margin:0}
 .pinned-name .endpoint-name:focus-visible{white-space:normal;overflow-wrap:anywhere}
 .column-sort{gap:4px;border-radius:3px;padding-block:4px}
 .column-sort .sort-indicator{color:var(--secondary);margin:0}
-[aria-sort] .column-sort .sort-indicator{color:var(--blue)}
+[aria-sort]:not([aria-sort=none]) .column-sort .sort-indicator{color:var(--blue)}
 .endpoint-id{display:block;color:var(--secondary);font-size:12px;line-height:16px}
 .load-share{color:var(--muted);white-space:normal}
-.status-switch{color:var(--quiet-text);gap:5px}
+.share-bar{display:block;width:56px;height:3px;margin:3px 0 0 auto;background:var(--border);border-radius:3px;overflow:hidden}
+.share-bar span{display:block;height:100%;background:var(--blue)}
+.status-switch{color:var(--secondary);gap:5px;min-height:24px;min-width:24px}
 .switch-track{display:inline-flex;align-items:center;width:32px;height:16px;padding:2px;border-radius:10px;background:#a2a1ad}
 .switch-track::before{content:"";height:12px;width:12px;border-radius:50%;background:#fff}
 .status-switch[aria-checked=true] .switch-track{background:#00a79d}
-#demand .status-switch{color:var(--secondary)}
 #demand .status-switch[aria-checked=true] .switch-track::before{margin-inline-start:auto}
+.timeout-badge{min-height:24px}
 .inspect{height:32px;padding:0 16px}
 .empty{text-align:center}
 .pagination{height:24px;padding-right:20px;display:flex;align-items:center;justify-content:flex-end;gap:3px;color:var(--secondary)}
-.pagination button{width:23px;height:24px;border:1px solid transparent;border-radius:1px}
+.pagination button{width:24px;height:24px;border:1px solid transparent;border-radius:1px}
 .pagination button[aria-current=page]{border-color:var(--blue);color:var(--blue)}
 .pagination button:disabled{color:var(--quiet-text)}
 .pagination select{height:24px;border:1px solid var(--field);background:#fff;border-radius:1px;padding:0 8px;margin-left:4px;color:var(--secondary)}

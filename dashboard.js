@@ -25,52 +25,56 @@ const regions = ['APAC', 'EU', 'US_EAST'];
 const types = ['RTB', 'VAST', 'Prebid'];
 const endpointLists = {
   supply: [
-    ['Northstar Video Supply','SSP-1042','RTB','APAC',3846,78.2,36.4,91.7,2.84],
-    ['Northstar Video Supply · US','SSP-1186','VAST','US_EAST',1436,63.9,28.1,88.3,2.32],
-    ['Open Media Exchange','SSP-1204','Prebid','EU',2445,72.4,31.6,93.1,2.61],
-    ['Vista Streaming Network','SSP-1215','RTB','EU',null,null,null,null,null],
-    ['Harbor Test Supply','SSP-1232','RTB','APAC',0,null,null,null,null,false],
-  ].map(([name,id,type,region,qps,fill,win,render,rcpm,active=true])=>({name,id,type,region,qps,fill,win,render,rcpm,active})),
+    ['Northstar Video Supply','SSP-1042','RTB','APAC',3846,78.2,36.4,91.7,2.84,3612],
+    ['Northstar Video Supply · US','SSP-1186','VAST','US_EAST',1436,63.9,28.1,88.3,2.32,1318],
+    ['Open Media Exchange','SSP-1204','Prebid','EU',2445,72.4,31.6,93.1,2.61,2320],
+    ['Vista Streaming Network','SSP-1215','RTB','EU',null,null,null,null,null,null],
+    ['Harbor Test Supply','SSP-1232','RTB','APAC',0,null,null,null,null,null,false],
+  ].map(([name,id,type,region,qps,fill,win,render,rcpm,validIncoming,active=true])=>({name,id,type,region,qps,fill,win,render,rcpm,validIncoming,active})),
   demand: [
-    ['Meridian Demand','DSP-3056','RTB','US_EAST',5210,25.0,29.4,0.8,3120.40],
-    ['Skyline Programmatic','DSP-3071','VAST','US_EAST',3385,26.0,27.1,1.4,1880.25],
-    ['Vector Media Buying','DSP-3012','RTB','APAC',6120,21.0,34.8,6.8,3640.10,true],
-    ['Lotus Ad Network','DSP-3088','RTB','APAC',3756,26.0,30.2,2.1,1590.30],
-    ['Atlas Video Exchange','DSP-3140','VAST','EU',4150,26.0,30.8,1.1,1420.55],
-    ['Nordic Bid Hub','DSP-3102','Prebid','EU',2613,24.0,28.9,0.4,950.73],
+    ['Meridian Demand','DSP-3056','RTB','US_EAST',5210,1303,0.294,0.008,3120.40],
+    ['Skyline Programmatic','DSP-3071','VAST','US_EAST',3385,880,0.271,0.014,1880.25],
+    ['Vector Media Buying','DSP-3012','RTB','APAC',6120,1285,0.348,0.068,3640.10],
+    ['Lotus Ad Network','DSP-3088','RTB','APAC',3756,977,0.302,0.021,1590.30],
+    ['Atlas Video Exchange','DSP-3140','VAST','EU',4150,1079,0.308,0.011,1420.55],
+    ['Nordic Bid Hub','DSP-3102','Prebid','EU',2613,627,0.289,0.004,950.73],
     ['Orion Digital Demand','DSP-3199','RTB','EU',null,null,null,null,null],
-  ].map(([name,id,type,region,outgoing,bid,win,timeout,spend,highTimeout=false])=>({name,id,type,region,outgoing,bid,win,timeout,spend,highTimeout,active:true})),
+  ].map(([name,id,type,region,outgoing,bids,winRate,timeoutRate,spend])=>({name,id,type,region,outgoing,bids,winRate,timeoutRate,spend,active:true})),
 };
 const demandOptional = [
   ['fill','Fill rate',8.2,'num'],['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],
   ['validBid','Valid bid rate',10,'num'],['spendLimit','Spend limit',10,'num'],['margin','Margin',8,'num'],
   ['email','Email',13],['comment','Comment',14],
 ];
-const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set(side==='demand'?demandOptional.map(([key])=>key):[])}]));
+const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set(side==='demand'?demandOptional.map(([key])=>key):['validIncoming'])}]));
 const endpointColumns = {
   supply: [
     ['name','Name / ID',20.65],['status','Status',10.2],['type','Type',7],['region','Region',8],
-    ['qps','Incoming QPS',9.15,'num'],['fill','Fill rate',8.2,'num'],['win','Win rate',8,'num'],
+    ['qps','Incoming QPS',9.15,'num'],['validRate','Valid rate',10.5,'num'],['validIncoming','Valid QPS',9.15,'num'],['fill','Fill rate',8.2,'num'],['win','Win rate',8,'num'],
     ['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],['details','Details',10.2],
   ],
   demand: [
-    ['name','Name / ID',20.65],['status','Status',8.5],['type','Type',7],['region','Region',8],
-    ['outgoing','Outgoing QPS',12,'num'],['bid','Bid rate',8.5,'num'],['win','Win rate',8.5,'num'],
-    ['timeout','Timeout rate',12,'num'],['spend','Spend today',11,'num'],...demandOptional,['details','Details',10.2],
+    ['status','Status',8.5],['name','Name / ID',20.65],['type','Type',7],['region','Region',8],
+    ['outgoing','Outgoing QPS',14,'num'],['bid','Bid rate',10.5,'num'],['win','Win rate',10.5,'num'],
+    ['timeout','Timeout rate',14,'num'],['spend','Spend today',13,'num'],...demandOptional,['details','Details',10.2],
   ],
 };
-const demandDefinitions = {
-  outgoing:'Requests per second sent to this DSP. The percentage is its share of the region’s Outgoing QPS in the overview.',
-  bid:'Assumption · Bid rate = Bids ÷ Outgoing requests.',
-  win:'Assumption · Win rate = Wins ÷ Bids.',
+const metricDefinitions = {
+  supply: {validRate:"Valid QPS ÷ Incoming QPS. The exact definition of 'valid' is being confirmed."},
+  demand: {
+    outgoing:'Requests the exchange sends to this DSP per second.',
+    bid:'Bids ÷ Outgoing QPS.',
+    win:'Wins ÷ bids. The definition varies between platforms and is being confirmed.',
+    timeout:'Share of requests the DSP did not answer in time.',
+    spend:'Meaning of spend on the demand side is being confirmed.',
+  },
 };
 const regionalTraffic = [
   ['US_EAST',1436,1318,8595,20000,true],['APAC',3846,3612,9876,10000],['EU',2445,2320,6763,10000],
 ];
 const regionalIncoming = new Map(regionalTraffic.map(([region,incoming])=>[region,incoming]));
 const regionalOutgoing = new Map(regionalTraffic.map(([region,,,outgoing])=>[region,outgoing]));
-const incomingShareFormat = new Intl.NumberFormat('en-US',{style:'percent',maximumFractionDigits:2});
-const outgoingShareFormat = new Intl.NumberFormat('en-US',{style:'percent',minimumFractionDigits:1,maximumFractionDigits:1});
+const percentFormat = new Intl.NumberFormat('en-US',{style:'percent',minimumFractionDigits:1,maximumFractionDigits:1});
 const trafficViews = [
   {name:'Regions',icon:'region',first:'Region',rows:regionalTraffic},
   {name:'Traffic Types',icon:'statistics',first:'Traffic type',rows:[
@@ -116,10 +120,10 @@ function utilization(value,limit,tooltipId) {
     'Approaching limit · '+number(headroom)+' req/s headroom';
   return metricTooltip(tooltipId,percent+'%'+icon('warning'),risk,'badge warning');
 }
-function metricTooltip(id,label,description,triggerClass,triggerLabel='') {
+function metricTooltip(id,label,description,triggerClass,triggerLabel='',assumed=false) {
   const definition = triggerLabel?' role="img" aria-label="'+triggerLabel+'"':'';
   return '<span class="limit-tip'+(triggerLabel?' definition-tip':'')+'"><span class="'+triggerClass+'" tabindex="0" aria-describedby="'+id+'"'+definition+'>'+label+'</span>'
-    +'<span class="limit-tooltip" id="'+id+'" role="tooltip"><span>'+safe(description)+'</span></span></span>';
+    +'<span class="limit-tooltip" id="'+id+'" role="tooltip"><span class="tooltip-content">'+(assumed?'<span class="assumption-pill">Assumption</span> ':'')+safe(description)+'</span></span></span>';
 }
 function bindTooltipDismissal(container) {
   for (const tip of container.querySelectorAll('.limit-tip')) {
@@ -161,7 +165,7 @@ function initEndpoints(side) {
   const columnItems = '<strong>Visible columns</strong>'+endpointColumns[side].filter(([key])=>key!=='name'&&key!=='details').map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'"'+(states[side].hidden.has(key)?'':' checked')+'>'+label+'</label>').join('');
   const columnsMenu = menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right');
   section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2>'+(side==='demand'?'<span class="badge neutral demo-label">Demo data</span>':'')+'<div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
-    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+'</div>'
+    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+'<span class="sort-summary" role="status"></span></div>'
     +'<div class="applied"></div><div class="table-scroll table-shell"><table class="endpoint-table" aria-label="'+title+' endpoints"></table></div><div class="pagination"></div>';
   renderEndpoints(side);
 }
@@ -176,8 +180,8 @@ function matching(side) {
   if (state.sort!=='original') {
     const key = state.sort;
     rows.sort((a,b)=>{
-      const first = key==='status'?Number(!a.active):a[key];
-      const second = key==='status'?Number(!b.active):b[key];
+      const first = metricValue(a,key);
+      const second = metricValue(b,key);
       if (first==null) return second==null?0:1;
       if (second==null) return -1;
       const comparison = typeof first==='string'?first.localeCompare(second):first-second;
@@ -189,25 +193,41 @@ function matching(side) {
 function statusLabels(side) {
   return side==='supply'?['Active','Inactive']:['On','Off'];
 }
-function regionalShare(value,total,formatter) {
-  return value==null || !(total>0)?null:formatter.format(value/total);
+function ratio(value,total) {
+  return value==null || !(total>0)?null:value/total;
 }
-function qpsCell(value,total,formatter) {
-  const share = regionalShare(value,total,formatter);
-  return number(value)+'<span class="endpoint-id load-share">'+(share===null?'Share unavailable':share+' of region')+'</span>';
+function percentage(value) {
+  return value==null?'—':percentFormat.format(value);
 }
+function metricValue(row,key) {
+  switch (key) {
+    case 'status': return Number(!row.active);
+    case 'validRate': return ratio(row.validIncoming,row.qps);
+    case 'bid': return ratio(row.bids,row.outgoing);
+    case 'win': return row.winRate ?? row.win;
+    case 'timeout': return row.timeoutRate;
+    default: return row[key];
+  }
+}
+function qpsCell(value,total,showBar=false) {
+  const share = ratio(value,total);
+  const bar = showBar && share!==null?'<span class="share-bar" aria-hidden="true"><span style="width:'+Math.min(100,share*100)+'%"></span></span>':'';
+  return number(value)+'<span class="endpoint-id load-share">'+(share===null?'Share unavailable':percentage(share)+' of region')+'</span>'+bar;
+}
+
 function rowCell(key,row,side) {
   const id = safe(row.id);
   const name = safe(row.name);
   const [on,off] = statusLabels(side);
   const cells = {
     name:'<button class="link endpoint-name" data-inspect="'+id+'" title="'+name+'">'+name+'</button><span class="endpoint-id" title="'+id+'">'+id+'</span>',
-    status:'<button class="status-switch" role="switch" aria-checked="'+row.active+'" aria-label="'+name+' configured status" data-toggle="'+id+'"><span class="switch-track"></span>'+(row.active?on:off)+'</button>',
+    status:'<button class="status-switch" role="switch" aria-checked="'+row.active+'" aria-label="'+name+', '+(row.active?on:off)+'" data-toggle="'+id+'"><span class="switch-track"></span>'+(row.active?on:off)+'</button>',
     type:safe(row.type),region:safe(row.region),
-    qps:qpsCell(row.qps,regionalIncoming.get(row.region),incomingShareFormat),
-    outgoing:qpsCell(row.outgoing,regionalOutgoing.get(row.region),outgoingShareFormat),
-    bid:rate(row.bid),win:rate(row.win),spend:money(row.spend),
-    timeout:row.highTimeout?metricTooltip('timeout-'+id,rate(row.timeout)+' · High','Assumption · High is an illustrative demo flag.','badge warning timeout-badge'):rate(row.timeout),
+    qps:qpsCell(row.qps,regionalIncoming.get(row.region)),
+    validRate:percentage(metricValue(row,'validRate')),validIncoming:number(row.validIncoming),
+    outgoing:qpsCell(row.outgoing,regionalOutgoing.get(row.region),true),
+    bid:percentage(metricValue(row,'bid')),win:side==='demand'?percentage(row.winRate):rate(row.win),spend:money(row.spend),
+    timeout:row.timeoutRate>0.05?metricTooltip('timeout-'+id,percentage(row.timeoutRate)+icon('warning')+'High','Illustrative threshold, not a platform rule','badge warning timeout-badge','',true):percentage(row.timeoutRate),
     fill:rate(row.fill),render:rate(row.render),rcpm:money(row.rcpm),validBid:rate(row.validBid),
     spendLimit:money(row.spendLimit),margin:rate(row.margin),email:safe(row.email??'—'),comment:safe(row.comment??'—'),
     details:'<button class="quiet inspect" data-inspect="'+id+'" aria-label="Inspect '+name+'">Inspect</button>',
@@ -222,6 +242,10 @@ function renderEndpoints(side) {
   const visible = endpointColumns[side].filter(([key])=>!state.hidden.has(key));
   const direction = state.sort==='original'?null:state.direction;
   const arrow = direction==='ascending'?'↑':'↓';
+  const sortedLabel = endpointColumns[side].find(([key])=>key===state.sort)?.[1];
+  const sortSummary = section.querySelector('.sort-summary');
+  const sortText = direction?'Sort: '+sortedLabel+' '+arrow:'Sort by column header';
+  if (sortSummary.textContent!==sortText) sortSummary.textContent=sortText;
   const scrollWeight = visible.reduce((sum,[key,,width])=>sum+(key==='name'?0:width),0);
   const table = section.querySelector('table');
   table.style.setProperty('--scroll-weight',scrollWeight);
@@ -234,16 +258,16 @@ function renderEndpoints(side) {
     const content = key!=='details'
       ? '<button class="column-sort" data-sort-column="'+key+'" aria-label="'+label+', sort '+(active&&direction==='ascending'?'descending':'ascending')+'">'+label+indicator+'</button>'
       : label;
-    const definition = side==='demand' && demandDefinitions[key];
-    const info = definition?metricTooltip('demand-definition-'+key,icon('info'),definition,'metric-info',label+' definition'):'';
-    return '<th scope="col" class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+info+content+'</th>';
+    const definition = metricDefinitions[side][key];
+    const info = definition?metricTooltip(side+'-definition-'+key,icon('info'),definition,'metric-info',label+' definition',true):'';
+    return '<th scope="col" class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'"'+(key==='details'?'':' aria-sort="'+(active?direction:'none')+'"')+'>'+info+content+'</th>';
   }).join('')+'</tr></thead><tbody>'
     +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
   bindTooltipDismissal(table);
   const [on,off] = statusLabels(side);
   const chip = (key,value,label) => '<button class="chip" data-chip="'+key+'" data-value="'+safe(value)+'" aria-label="Remove '+safe(label)+' filter">'+safe(label)+icon('close')+'</button>';
   section.querySelector('.applied').innerHTML = '<span class="match" aria-live="polite">'+rows.length+' matching endpoint'+(rows.length===1?'':'s')+'</span>'
-    +[...state.regions].map(r=>chip('region',r,'Region: '+r)).join('')
+    +(side==='demand' && state.regions.size===regions.length?chip('all-regions','','Region: All ('+regions.length+')'):[...state.regions].map(r=>chip('region',r,'Region: '+r)).join(''))
     +(state.status==='all'?'':chip('status',state.status,'Configured: '+(state.status==='active'?on:off)))
     +(state.regions.size||state.status!=='all'||state.query?'<button class="link" data-clear>Clear filters</button>':'');
   const pages = Array.from({length:Math.max(3,total)},(_,i)=>i+1);
@@ -273,7 +297,7 @@ const fact = (label,value) => '<div class="fact">'+safe(label)+'<strong>'+safe(v
 function inspect(side,row) {
   const performance = side==='supply'
     ? fact('Incoming QPS',number(row.qps))+fact('Fill rate',rate(row.fill))+fact('rCPM',money(row.rcpm))
-    : fact('Outgoing QPS',number(row.outgoing))+fact('Bid rate',rate(row.bid))+fact('Spend today',money(row.spend));
+    : fact('Outgoing QPS',number(row.outgoing))+fact('Bid rate',percentage(metricValue(row,'bid')))+fact('Spend today',money(row.spend));
   openDialog(row.name,
     '<p class="meta">'+safe([row.id,side==='supply'?'Supply':'Demand',row.type,row.region].join(' · '))+'</p>'
     +'<div class="facts">'+fact('Configured status',row.active?'On':'Off')+fact('Traffic health','Unavailable')+'</div>'
@@ -289,8 +313,8 @@ function exportCsv(side) {
   const [on,off] = statusLabels(side);
   const rows = matching(side);
   const data = side==='supply'
-    ? [['Name','ID','Status','Type','Region','Incoming QPS','Fill rate','Win rate','Render rate','rCPM'],...rows.map(r=>[r.name,r.id,r.active?on:off,r.type,r.region,r.qps,r.fill,r.win,r.render,r.rcpm])]
-    : [['Name','ID','Status','Type','Region','Outgoing QPS','% of region','Bid rate','Win rate','Timeout rate','Spend today'],...rows.map(r=>[r.name,r.id,r.active?on:off,r.type,r.region,r.outgoing,regionalShare(r.outgoing,regionalOutgoing.get(r.region),outgoingShareFormat),r.bid,r.win,r.timeout,r.spend])];
+    ? [['Name','ID','Status','Type','Region','Incoming QPS','Valid rate','Valid QPS','Fill rate','Win rate','Render rate','rCPM'],...rows.map(r=>[r.name,r.id,r.active?on:off,r.type,r.region,r.qps,metricValue(r,'validRate')==null?null:percentage(metricValue(r,'validRate')),r.validIncoming,r.fill,r.win,r.render,r.rcpm])]
+    : [['Name','ID','Status','Type','Region','Outgoing QPS','% of region','Bid rate','Win rate','Timeout rate','Spend today'],...rows.map(r=>[r.name,r.id,r.active?on:off,r.type,r.region,r.outgoing,ratio(r.outgoing,regionalOutgoing.get(r.region))==null?null:percentage(ratio(r.outgoing,regionalOutgoing.get(r.region))),r.bids==null?null:percentage(metricValue(r,'bid')),r.winRate==null?null:percentage(r.winRate),r.timeoutRate==null?null:percentage(r.timeoutRate),r.spend])];
   const csv = data.map(row=>row.map(value=>'"'+String(value??'').replace(/^([=+@-])/,"'$1").replaceAll('"','""')+'"').join(',')).join('\r\n');
   const href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   const link = document.createElement('a');
@@ -372,6 +396,7 @@ document.addEventListener('click', async event => {
   } else if (d.page) state.page=Number(d.page);
   else if (d.chip) {
     if (d.chip==='region') state.regions.delete(d.value);
+    else if (d.chip==='all-regions') state.regions.clear();
     else state.status='all';
     state.page=1;
   } else if (d.clear!==undefined) {
@@ -380,6 +405,11 @@ document.addEventListener('click', async event => {
   } else return;
   renderEndpoints(side);
   if (d.sortColumn) $('#'+side+' [data-sort-column="'+d.sortColumn+'"]').focus({preventScroll:true});
+  if (d.toggle) {
+    const toggle = [...$('#'+side).querySelectorAll('[data-toggle]')].find(control=>control.dataset.toggle===d.toggle);
+    (toggle ?? $('#'+side+' [data-menu="filter"]')).focus({preventScroll:true});
+  }
+  if (d.page) $('#'+side+' [aria-current="page"]').focus({preventScroll:true});
 });
 
 document.addEventListener('input',event=>{
@@ -436,3 +466,25 @@ renderTraffic();
 renderFinance();
 initEndpoints('supply');
 initEndpoints('demand');
+
+if (['127.0.0.1','localhost'].includes(location.hostname) && new URLSearchParams(location.search).has('check')) {
+  const assert = (condition,message) => {if (!condition) throw Error('Demo check: '+message);};
+  for (const [region,total] of regionalOutgoing) {
+    const rows = endpointLists.demand.filter(row=>row.region===region && row.outgoing!=null);
+    assert(rows.reduce((sum,row)=>sum+row.outgoing,0)===total,region+' outgoing total');
+    const shareSum = rows.reduce((sum,row)=>sum+parseFloat(percentage(ratio(row.outgoing,total))),0);
+    assert(Math.abs(shareSum-100)<=0.100001,region+' displayed shares');
+  }
+  const expectedValidRates = new Map([
+    ['SSP-1042','93.9%'],['SSP-1186','91.8%'],['SSP-1204','94.9%'],['SSP-1215','—'],
+  ]);
+  for (const row of endpointLists.supply) {
+    const expected = expectedValidRates.get(row.id);
+    if (expected) assert(percentage(metricValue(row,'validRate'))===expected,row.id+' valid rate');
+  }
+  const us = regionalTraffic.find(([region])=>region==='US_EAST');
+  const apac = regionalTraffic.find(([region])=>region==='APAC');
+  assert(utilization(us[1],us[4],'check-us').includes('7.18%'),'US_EAST incoming plan utilization');
+  assert(utilization(apac[3],apac[4],'check-apac').includes('98.76%'),'APAC outgoing plan utilization');
+  console.info('Demo data checks passed');
+}

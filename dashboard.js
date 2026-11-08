@@ -45,6 +45,13 @@ const columns = [
   ['qps','Incoming QPS',9.15,'num'],['fill','Fill rate',8.2,'num'],['win','Win rate',8,'num'],
   ['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],['details','Details',10.2],
 ];
+const sortOptions = {
+  original: {label:'Default order'},
+  name: {label:'Name A–Z', column:'Name', direction:'ascending'},
+  qps: {label:'Highest Incoming QPS', column:'Incoming QPS', direction:'descending'},
+  fill: {label:'Highest fill rate', column:'Fill rate', direction:'descending'},
+  rcpm: {label:'Highest rCPM', column:'rCPM', direction:'descending'},
+};
 const trafficViews = [
   {name:'Regions',icon:'region',first:'Region',rows:[
     ['US_EAST',1436,1318,8595,20000,true],['APAC',3846,3612,9876,10000],['EU',2445,2320,6763,10000],
@@ -106,13 +113,13 @@ function renderFinance() {
 }
 
 function menuButton(action,text,content,classes='select-button',leading='',side='') {
-  return '<div class="menu-anchor"><button class="'+classes+'" data-menu="'+action+'" aria-label="'+text+'" aria-expanded="false">'+leading+(side==='icon'?'':text)+'<span class="trailing">'+icon('chevron')+'</span></button><div class="menu'+(side==='icon'?' right':'')+'" hidden>'+content+'</div></div>';
+  return '<div class="menu-anchor"><button class="'+classes+'" data-menu="'+action+'" aria-label="'+text+'" aria-expanded="false">'+leading+(side==='icon'?'':'<span class="menu-label">'+text+'</span>')+'<span class="trailing">'+icon('chevron')+'</span></button><div class="menu'+(side==='icon'?' right':'')+'" hidden>'+content+'</div></div>';
 }
 function initEndpoints(side) {
   const section = $('#'+side);
   const title = side==='supply'?'Supply Side':'Demand Side';
   const filterItems = '<strong>Region</strong>'+regions.map(r => '<label><input type="checkbox" data-region="'+r+'">'+r+'</label>').join('')+'<strong>Configured status</strong>'+[['all','Any status'],['active','Active'],['inactive','Inactive']].map(([value,label])=>'<label><input type="radio" name="'+side+'-status" data-status="'+value+'">'+label+'</label>').join('');
-  const sortItems = [['original','Default order'],['name','Name A–Z'],['qps','Highest Incoming QPS'],['fill','Highest fill rate'],['rcpm','Highest rCPM']].map(([value,label])=>'<button data-sort="'+value+'">'+label+'</button>').join('');
+  const sortItems = Object.entries(sortOptions).map(([value,{label}])=>'<button data-sort="'+value+'">'+label+'</button>').join('');
   const columnItems = '<strong>Visible columns</strong>'+columns.slice(1,-1).map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'" checked>'+label+'</label>').join('');
   section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2><div class="tools">'+menuButton('columns','Visible columns',columnItems,'tool',icon('columns'),'icon')+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
     +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+menuButton('sort','Sort by',sortItems,'select-button sort-button',icon('sort'))+'</div>'
@@ -127,8 +134,9 @@ function matching(side) {
     (!query || (row.name+' '+row.id).toLowerCase().includes(query)) &&
     (!state.regions.size || state.regions.has(row.region)) &&
     (state.status==='all' || row.active===(state.status==='active')));
-  if (state.sort==='name') rows.sort((a,b)=>a.name.localeCompare(b.name));
-  else if (state.sort!=='original') rows.sort((a,b)=>(b[state.sort]??-Infinity)-(a[state.sort]??-Infinity));
+  const {direction} = sortOptions[state.sort];
+  if (direction==='ascending') rows.sort((a,b)=>a[state.sort].localeCompare(b[state.sort]));
+  else if (direction==='descending') rows.sort((a,b)=>(b[state.sort]??-Infinity)-(a[state.sort]??-Infinity));
   return rows;
 }
 function rowCell(key,row) {
@@ -147,7 +155,15 @@ function renderEndpoints(side) {
   state.page = Math.min(total,Math.max(1,state.page));
   const shown = rows.slice((state.page-1)*state.size,state.page*state.size);
   const visible = columns.filter(([key])=>!state.hidden.has(key));
-  section.querySelector('table').innerHTML = '<colgroup>'+visible.map(([, ,width])=>'<col style="width:'+width+'%">').join('')+'</colgroup><thead><tr>'+visible.map(([,label,,align])=>'<th scope="col" class="'+(align??'')+'">'+label+'</th>').join('')+'</tr></thead><tbody>'
+  const {column,direction} = sortOptions[state.sort];
+  const arrow = direction==='ascending'?'↑':'↓';
+  const sortButton = section.querySelector('[data-menu="sort"]');
+  sortButton.querySelector('.menu-label').textContent = direction?'Sort: '+column+' '+arrow:'Sort by';
+  sortButton.setAttribute('aria-label',direction?'Sort: '+column+' '+direction:'Sort by');
+  section.querySelector('table').innerHTML = '<colgroup>'+visible.map(([, ,width])=>'<col style="width:'+width+'%">').join('')+'</colgroup><thead><tr>'+visible.map(([key,label,,align])=>{
+    const active = direction && key===state.sort;
+    return '<th scope="col" class="'+(align??'')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+label+(active?' <span class="sort-indicator" aria-hidden="true">'+arrow+'</span>':'')+'</th>';
+  }).join('')+'</tr></thead><tbody>'
     +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+(align??'')+'">'+rowCell(key,row)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
   const chip = (key,value,label) => '<button class="chip" data-chip="'+key+'" data-value="'+safe(value)+'" aria-label="Remove '+safe(label)+' filter">'+safe(label)+icon('close')+'</button>';
   section.querySelector('.applied').innerHTML = '<span class="match" aria-live="polite">'+rows.length+' matching endpoint'+(rows.length===1?'':'s')+'</span>'
@@ -270,7 +286,6 @@ document.addEventListener('click', async event => {
     state.sort=d.sort;
     state.page=1;
     closeMenus();
-    $('#'+side+' [data-menu="sort"]').focus();
   } else if (d.page) state.page=Number(d.page);
   else if (d.chip) {
     if (d.chip==='region') state.regions.delete(d.value);
@@ -281,6 +296,7 @@ document.addEventListener('click', async event => {
     $('#'+side+' input[type=search]').value='';
   } else return;
   renderEndpoints(side);
+  if (d.sort) $('#'+side+' [data-menu="sort"]').focus();
 });
 
 document.addEventListener('input',event=>{

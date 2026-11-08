@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Attekmi · Dashboard prototype</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="icons.js"></script>
+  <script defer src="dashboard.js"></script>
+</head>
+<body>
+  <header class="global">
+    <button class="logo" data-section="Dashboard">Logotype</button>
+    <nav aria-label="Main navigation" id="navigation"></nav>
+  </header>
+  <div class="application">
+    <aside class="sidebar" aria-label="Utility navigation" id="sidebar"></aside>
+    <main class="workspace" aria-label="Attekmi dashboard">
+      <div class="overview">
+        <section class="panel monitoring" aria-label="Traffic overview">
+          <div class="tabs" id="traffic-tabs" role="tablist" aria-label="Traffic view"></div>
+          <div class="table-scroll" id="traffic-content" role="tabpanel"></div>
+          <div class="panel-foot"><span>60-second snapshot</span><span id="traffic-updated"></span></div>
+        </section>
+        <section class="panel finance" aria-label="Financial comparison">
+          <div class="finance-head">
+            <div class="tabs" id="finance-tabs" role="tablist" aria-label="Financial metric"></div>
+            <button class="icon-button quiet" id="finance-details" aria-label="View financial comparison"></button>
+          </div>
+          <div id="finance-content" role="tabpanel"></div>
+          <div class="panel-foot"><span>Comparison: 00:00–14:00 UTC</span><span id="finance-updated"></span></div>
+        </section>
+      </div>
+      <section class="panel endpoints" id="supply" aria-labelledby="supply-title"></section>
+      <section class="panel endpoints" id="demand" aria-labelledby="demand-title"></section>
+      <footer class="page-foot">Demo data for design review&nbsp; · &nbsp;Endpoint metrics use the period shown above.</footer>
+    </main>
+  </div>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

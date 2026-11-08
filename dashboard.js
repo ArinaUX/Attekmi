@@ -9,6 +9,7 @@ const paths = {
   columns: '<path d="M0 2h7m2 0h7M0 6h7m2 0h7M0 10h7m2 0h7M0 14h7m2 0h7"/>',
   external: '<path d="M3 12 12 3M6 3h6v6M2 14h12"/>',
   refresh: '<path d="M13 6a5.5 5.5 0 1 0-1 6M13 2v4H9"/>',
+  info: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5v3.5m0-6h.01"/>',
   warning: '<path d="M8 2 15 14H1L8 2Zm0 4v4m0 1.5v.1"/>',
 };
 function icon(name) {
@@ -23,40 +24,63 @@ const money = value => value == null ? '—' : new Intl.NumberFormat('en-US',{st
 
 const regions = ['APAC', 'EU', 'US_EAST'];
 const types = ['RTB', 'VAST', 'Prebid'];
-const data = {
+const endpointLists = {
   supply: [
     ['Northstar Video Supply','SSP-1042','RTB','APAC',3846,78.2,36.4,91.7,2.84],
     ['Northstar Video Supply · US','SSP-1186','VAST','US_EAST',1436,63.9,28.1,88.3,2.32],
     ['Open Media Exchange','SSP-1204','Prebid','EU',2445,72.4,31.6,93.1,2.61],
     ['Vista Streaming Network','SSP-1215','RTB','EU',null,null,null,null,null],
     ['Harbor Test Supply','SSP-1232','RTB','APAC',0,null,null,null,null,false],
+  ].map(([name,id,type,region,qps,fill,win,render,rcpm,active=true])=>({name,id,type,region,qps,fill,win,render,rcpm,active})),
+  demand: [
+    ['Meridian Demand','DSP-3056','RTB','US_EAST',5210,25.0,29.4,0.8,3120.40],
+    ['Skyline Programmatic','DSP-3071','VAST','US_EAST',3385,26.0,27.1,1.4,1880.25],
+    ['Vector Media Buying','DSP-3012','RTB','APAC',6120,21.0,34.8,6.8,3640.10,true],
+    ['Lotus Ad Network','DSP-3088','RTB','APAC',3756,26.0,30.2,2.1,1590.30],
+    ['Atlas Video Exchange','DSP-3140','VAST','EU',4150,26.0,30.8,1.1,1420.55],
+    ['Nordic Bid Hub','DSP-3102','Prebid','EU',2613,24.0,28.9,0.4,950.73],
+    ['Orion Digital Demand','DSP-3199','RTB','EU',null,null,null,null,null],
+  ].map(([name,id,type,region,outgoing,bid,win,timeout,spend,highTimeout=false])=>({name,id,type,region,outgoing,bid,win,timeout,spend,highTimeout,active:true})),
+};
+const demandOptional = [
+  ['fill','Fill rate',8.2,'num'],['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],
+  ['validBid','Valid bid rate',10,'num'],['spendLimit','Spend limit',10,'num'],['margin','Margin',8,'num'],
+  ['email','Email',13],['comment','Comment',14],
+];
+const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set(side==='demand'?demandOptional.map(([key])=>key):[])}]));
+const endpointColumns = {
+  supply: [
+    ['name','Name / ID',20.65],['status','Status',10.2],['type','Type',7],['region','Region',8],
+    ['qps','Incoming QPS',9.15,'num'],['fill','Fill rate',8.2,'num'],['win','Win rate',8,'num'],
+    ['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],['details','Details',10.2],
   ],
   demand: [
-    ['Atlas Video Exchange','DSP-3140','VAST','EU',1937,69.2,30.8,88.5,2.49],
-    ['Meridian Demand','DSP-3056','RTB','US_EAST',1168,64.1,27.6,86.2,2.21],
-    ['Vector Media Buying','DSP-3012','RTB','APAC',2461,71.4,34.8,90.6,2.68],
-    ['Cedar Test Demand','DSP-3226','Prebid','EU',0,null,null,null,null,false],
+    ['status','Status',8.5],['name','Name / ID',20.65],['type','Type',7],['region','Region',8],
+    ['outgoing','Outgoing QPS',12,'num'],['bid','Bid rate',8.5,'num'],['win','Win rate',8.5,'num'],
+    ['timeout','Timeout rate',12,'num'],['spend','Spend today',11,'num'],...demandOptional,['details','Details',10.2],
   ],
 };
-const endpointLists = Object.fromEntries(Object.entries(data).map(([side, rows]) => [side, rows.map(([name,id,type,region,qps,fill,win,render,rcpm,active=true]) => ({name,id,type,region,qps,fill,win,render,rcpm,active}))]));
-const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set()}]));
-const columns = [
-  ['name','Name / ID',20.65],['status','Status',10.2],['type','Type',7],['region','Region',8],
-  ['qps','Incoming QPS',9.15,'num'],['fill','Fill rate',8.2,'num'],['win','Win rate',8,'num'],
-  ['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],['details','Details',10.2],
-];
+const demandDefinitions = {
+  outgoing:'Requests per second sent to this DSP. The percentage is its share of the region’s Outgoing QPS in the overview.',
+  bid:'Assumption · Bid rate = Bids ÷ Outgoing requests.',
+  win:'Assumption · Win rate = Wins ÷ Bids.',
+};
 const sortOptions = {
   original: {label:'Default order'},
   name: {label:'Name A–Z', column:'Name', direction:'ascending'},
-  qps: {label:'Highest Incoming QPS', column:'Incoming QPS', direction:'descending'},
-  fill: {label:'Highest fill rate', column:'Fill rate', direction:'descending'},
-  rcpm: {label:'Highest rCPM', column:'rCPM', direction:'descending'},
+  outgoing: {label:'Highest Outgoing QPS', column:'Outgoing QPS', direction:'descending'},
+  bid: {label:'Highest bid rate', column:'Bid rate', direction:'descending'},
+  win: {label:'Highest win rate', column:'Win rate', direction:'descending'},
+  timeout: {label:'Highest timeout rate', column:'Timeout rate', direction:'descending'},
+  spend: {label:'Highest spend today', column:'Spend today', direction:'descending'},
 };
 const regionalTraffic = [
   ['US_EAST',1436,1318,8595,20000,true],['APAC',3846,3612,9876,10000],['EU',2445,2320,6763,10000],
 ];
 const regionalIncoming = new Map(regionalTraffic.map(([region,incoming])=>[region,incoming]));
-const shareFormat = new Intl.NumberFormat('en-US',{style:'percent',maximumFractionDigits:2});
+const regionalOutgoing = new Map(regionalTraffic.map(([region,,,outgoing])=>[region,outgoing]));
+const incomingShareFormat = new Intl.NumberFormat('en-US',{style:'percent',maximumFractionDigits:2});
+const outgoingShareFormat = new Intl.NumberFormat('en-US',{style:'percent',minimumFractionDigits:1,maximumFractionDigits:1});
 const trafficViews = [
   {name:'Regions',icon:'region',first:'Region',rows:regionalTraffic},
   {name:'Traffic Types',icon:'statistics',first:'Traffic type',rows:[
@@ -69,7 +93,7 @@ const trafficViews = [
 const financeViews = [
   {name:'Profit',today:1890.35,yesterday:1742.62},
   {name:'SSP Spend',today:4180.24,yesterday:4005.67},
-  {name:'DSP Spend',today:6070.59,yesterday:5748.29},
+  {name:'DSP Spend',today:endpointLists.demand.reduce((sum,row)=>sum+(row.spend??0),0),yesterday:5748.29},
 ];
 let trafficTab = 0;
 let financeTab = 0;
@@ -100,8 +124,21 @@ function utilization(value,limit,tooltipId) {
   const risk = headroom<0?'Over limit · '+number(-headroom)+' req/s above plan limit':
     headroom===0?'Plan limit reached · 0 req/s headroom':
     'Approaching limit · '+number(headroom)+' req/s headroom';
-  return '<span class="limit-tip"><span class="badge warning" tabindex="0" aria-describedby="'+tooltipId+'">'+percent+'%'+icon('warning')+'</span>'
-    +'<span class="limit-tooltip" id="'+tooltipId+'" role="tooltip"><span>'+risk+'</span></span></span>';
+  return metricTooltip(tooltipId,percent+'%'+icon('warning'),risk,'badge warning');
+}
+function metricTooltip(id,label,description,triggerClass,triggerLabel='') {
+  const definition = triggerLabel?' role="img" aria-label="'+triggerLabel+'"':'';
+  return '<span class="limit-tip'+(triggerLabel?' definition-tip':'')+'"><span class="'+triggerClass+'" tabindex="0" aria-describedby="'+id+'"'+definition+'>'+label+'</span>'
+    +'<span class="limit-tooltip" id="'+id+'" role="tooltip"><span>'+safe(description)+'</span></span></span>';
+}
+function bindTooltipDismissal(container) {
+  for (const tip of container.querySelectorAll('.limit-tip')) {
+    const resetDismissal = () => {
+      if (!tip.matches(':hover, :focus-within')) tip.removeAttribute('data-dismissed');
+    };
+    tip.addEventListener('pointerleave',resetDismissal);
+    tip.addEventListener('focusout',() => queueMicrotask(resetDismissal));
+  }
 }
 function updated(kind) {
   $('#'+kind+'-updated').innerHTML = 'Updated '+times[kind]+' UTC <button data-refresh="'+kind+'" aria-label="Refresh '+(kind==='traffic'?'traffic overview':'financial comparison')+'">'+icon('refresh')+'</button>';
@@ -112,13 +149,7 @@ function renderTraffic() {
   const content = $('#traffic-content');
   content.innerHTML = '<table class="summary"><colgroup><col style="width:16.67%"><col style="width:20.65%"><col style="width:22.25%"><col style="width:20.3%"><col></colgroup><thead><tr><th scope="col">'+view.first+'</th><th scope="col">Incoming QPS</th><th scope="col">Valid Incoming QPS</th><th scope="col">Outgoing QPS</th><th scope="col">Plan Limit</th></tr></thead><tbody>'+view.rows.map(([name,incoming,valid,outgoing,limit,main],index) =>
     '<tr><td>'+name+(main?'<span class="badge neutral">Main</span>':'')+'</td><td>'+number(incoming)+utilization(incoming,limit,'incoming-risk-'+index)+'</td><td>'+number(valid)+'</td><td>'+number(outgoing)+utilization(outgoing,limit,'outgoing-risk-'+index)+'</td><td>'+number(limit)+'</td></tr>').join('')+'</tbody></table>';
-  for (const tip of content.querySelectorAll('.limit-tip')) {
-    const resetDismissal = () => {
-      if (!tip.matches(':hover, :focus-within')) tip.removeAttribute('data-dismissed');
-    };
-    tip.addEventListener('pointerleave',resetDismissal);
-    tip.addEventListener('focusout',() => queueMicrotask(resetDismissal));
-  }
+  bindTooltipDismissal(content);
   updated('traffic');
 }
 function renderFinance() {
@@ -135,13 +166,12 @@ function menuButton(action,text,content,classes='select-button',leading='',side=
 function initEndpoints(side) {
   const section = $('#'+side);
   const title = side==='supply'?'Supply Side':'Demand Side';
-  const filterItems = '<strong>Region</strong>'+regions.map(r => '<label><input type="checkbox" data-region="'+r+'">'+r+'</label>').join('')+'<strong>Configured status</strong>'+[['all','Any status'],['active','Active'],['inactive','Inactive']].map(([value,label])=>'<label><input type="radio" name="'+side+'-status" data-status="'+value+'">'+label+'</label>').join('');
+  const [on,off] = statusLabels(side);
+  const filterItems = '<strong>Region</strong>'+regions.map(r => '<label><input type="checkbox" data-region="'+r+'">'+r+'</label>').join('')+'<strong>Configured status</strong>'+[['all','Any status'],['active',on],['inactive',off]].map(([value,label])=>'<label><input type="radio" name="'+side+'-status" data-status="'+value+'">'+label+'</label>').join('');
   const sortItems = Object.entries(sortOptions).map(([value,{label}])=>'<button data-sort="'+value+'">'+label+'</button>').join('');
-  const columnItems = '<strong>Visible columns</strong>'+columns.slice(1,-1).map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'" checked>'+label+'</label>').join('');
-  const columnsMenu = side==='supply'
-    ? menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right')
-    : menuButton('columns','Visible columns',columnItems,'tool',icon('columns'),'icon');
-  section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2><div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
+  const columnItems = '<strong>Visible columns</strong>'+endpointColumns[side].filter(([key])=>key!=='name'&&key!=='details').map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'"'+(states[side].hidden.has(key)?'':' checked')+'>'+label+'</label>').join('');
+  const columnsMenu = menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right');
+  section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2>'+(side==='demand'?'<span class="badge neutral demo-label">Demo data</span>':'')+'<div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
     +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+(side==='demand'?menuButton('sort','Sort by',sortItems,'select-button sort-button',icon('sort')):'')+'</div>'
     +'<div class="applied"></div><div class="table-scroll table-shell"><table class="endpoint-table" aria-label="'+title+' endpoints"></table></div><div class="pagination"></div>';
   renderEndpoints(side);
@@ -172,28 +202,31 @@ function matching(side) {
   }
   return rows;
 }
-function incomingQpsCell(row,side) {
-  const value = number(row.qps);
-  if (side!=='supply') return value;
-
-  const total = regionalIncoming.get(row.region);
-  if (row.qps==null || !(total>0)) {
-    return value+'<span class="endpoint-id load-share">Share unavailable</span>';
-  }
-  const share = shareFormat.format(row.qps/total);
-  return value+'<span class="endpoint-id load-share">'+share+' load</span>';
+function statusLabels(side) {
+  return side==='supply'?['Active','Inactive']:['On','Off'];
 }
-
+function regionalShare(value,total,formatter) {
+  return value==null || !(total>0)?null:formatter.format(value/total);
+}
+function qpsCell(value,total,formatter) {
+  const share = regionalShare(value,total,formatter);
+  return number(value)+'<span class="endpoint-id load-share">'+(share===null?'Share unavailable':share+' of region')+'</span>';
+}
 function rowCell(key,row,side) {
   const id = safe(row.id);
   const name = safe(row.name);
-  const nameTitle = side==='supply'?' title="'+name+'"':'';
-  const idTitle = side==='supply'?' title="'+id+'"':'';
+  const [on,off] = statusLabels(side);
   const cells = {
-    name:'<button class="link endpoint-name" data-inspect="'+id+'"'+nameTitle+'>'+name+'</button><span class="endpoint-id"'+idTitle+'>'+id+'</span>',
-    status:'<button class="status-switch" role="switch" aria-checked="'+row.active+'" aria-label="'+safe(row.name)+' configured status" data-toggle="'+id+'"><span class="switch-track"></span>'+(row.active?'Active':'Inactive')+'</button>',
-    type:safe(row.type),region:safe(row.region),qps:incomingQpsCell(row,side),fill:rate(row.fill),win:rate(row.win),render:rate(row.render),rcpm:money(row.rcpm),
-    details:'<button class="quiet inspect" data-inspect="'+id+'" aria-label="Inspect '+safe(row.name)+'">Inspect</button>',
+    name:'<button class="link endpoint-name" data-inspect="'+id+'" title="'+name+'">'+name+'</button><span class="endpoint-id" title="'+id+'">'+id+'</span>',
+    status:'<button class="status-switch" role="switch" aria-checked="'+row.active+'" aria-label="'+name+' configured status" data-toggle="'+id+'"><span class="switch-track"></span>'+(row.active?on:off)+'</button>',
+    type:safe(row.type),region:safe(row.region),
+    qps:qpsCell(row.qps,regionalIncoming.get(row.region),incomingShareFormat),
+    outgoing:qpsCell(row.outgoing,regionalOutgoing.get(row.region),outgoingShareFormat),
+    bid:rate(row.bid),win:rate(row.win),spend:money(row.spend),
+    timeout:row.highTimeout?metricTooltip('timeout-'+id,rate(row.timeout)+' · High','Assumption · High is an illustrative demo flag.','badge warning timeout-badge'):rate(row.timeout),
+    fill:rate(row.fill),render:rate(row.render),rcpm:money(row.rcpm),validBid:rate(row.validBid),
+    spendLimit:money(row.spendLimit),margin:rate(row.margin),email:safe(row.email??'—'),comment:safe(row.comment??'—'),
+    details:'<button class="quiet inspect" data-inspect="'+id+'" aria-label="Inspect '+name+'">Inspect</button>',
   };
   return cells[key];
 }
@@ -202,7 +235,7 @@ function renderEndpoints(side) {
   const total = Math.max(1,Math.ceil(rows.length/state.size));
   state.page = Math.min(total,Math.max(1,state.page));
   const shown = rows.slice((state.page-1)*state.size,state.page*state.size);
-  const visible = columns.filter(([key])=>!state.hidden.has(key));
+  const visible = endpointColumns[side].filter(([key])=>!state.hidden.has(key));
   const supply = side==='supply';
   const direction = sortDirection(side,state);
   const arrow = direction==='ascending'?'↑':'↓';
@@ -212,11 +245,10 @@ function renderEndpoints(side) {
     sortButton.querySelector('.menu-label').textContent = direction?'Sort: '+column+' '+arrow:'Sort by';
     sortButton.setAttribute('aria-label',direction?'Sort: '+column+' '+direction:'Sort by');
   }
-  const scrollWeight = visible.slice(1).reduce((sum,[,,width])=>sum+width,0);
+  const scrollWeight = visible.reduce((sum,[key,,width])=>sum+(key==='name'?0:width),0);
   const table = section.querySelector('table');
-  if (supply) table.style.setProperty('--scroll-weight',scrollWeight);
+  table.style.setProperty('--scroll-weight',scrollWeight);
   const columnWidths = visible.map(([key,,width])=>{
-    if (!supply) return width+'%';
     return key==='name'?'var(--pinned-column)':'calc((var(--table-width) - var(--pinned-column)) * '+(width/scrollWeight)+')';
   });
   table.innerHTML = '<colgroup>'+columnWidths.map(width=>'<col style="width:'+width+'">').join('')+'</colgroup><thead><tr>'+visible.map(([key,label,,align])=>{
@@ -225,13 +257,17 @@ function renderEndpoints(side) {
     const content = supply && key!=='details'
       ? '<button class="column-sort" data-sort-column="'+key+'" aria-label="'+label+', sort '+(active&&direction==='ascending'?'descending':'ascending')+'">'+label+indicator+'</button>'
       : label+(active?' '+indicator:'');
-    return '<th scope="col" class="'+(align??'')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+content+'</th>';
+    const definition = !supply && demandDefinitions[key];
+    const info = definition?metricTooltip('demand-definition-'+key,icon('info'),definition,'metric-info',label+' definition'):'';
+    return '<th scope="col" class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+content+info+'</th>';
   }).join('')+'</tr></thead><tbody>'
-    +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+(align??'')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
+    +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
+  bindTooltipDismissal(table);
+  const [on,off] = statusLabels(side);
   const chip = (key,value,label) => '<button class="chip" data-chip="'+key+'" data-value="'+safe(value)+'" aria-label="Remove '+safe(label)+' filter">'+safe(label)+icon('close')+'</button>';
   section.querySelector('.applied').innerHTML = '<span class="match" aria-live="polite">'+rows.length+' matching endpoint'+(rows.length===1?'':'s')+'</span>'
     +[...state.regions].map(r=>chip('region',r,'Region: '+r)).join('')
-    +(state.status==='all'?'':chip('status',state.status,'Configured: '+(state.status==='active'?'Active':'Inactive')))
+    +(state.status==='all'?'':chip('status',state.status,'Configured: '+(state.status==='active'?on:off)))
     +(state.regions.size||state.status!=='all'||state.query?'<button class="link" data-clear>Clear filters</button>':'');
   const pages = Array.from({length:Math.max(3,total)},(_,i)=>i+1);
   section.querySelector('.pagination').innerHTML = '<button aria-label="Previous page" data-page="'+(state.page-1)+'" '+(state.page===1?'disabled':'')+'>‹</button>'
@@ -258,11 +294,14 @@ function openDialog(title,body) {
 }
 const fact = (label,value) => '<div class="fact">'+safe(label)+'<strong>'+safe(value)+'</strong></div>';
 function inspect(side,row) {
+  const performance = side==='supply'
+    ? fact('Incoming QPS',number(row.qps))+fact('Fill rate',rate(row.fill))+fact('rCPM',money(row.rcpm))
+    : fact('Outgoing QPS',number(row.outgoing))+fact('Bid rate',rate(row.bid))+fact('Spend today',money(row.spend));
   openDialog(row.name,
     '<p class="meta">'+safe([row.id,side==='supply'?'Supply':'Demand',row.type,row.region].join(' · '))+'</p>'
     +'<div class="facts">'+fact('Configured status',row.active?'On':'Off')+fact('Traffic health','Unavailable')+'</div>'
     +'<h3>Performance</h3><p class="meta">Today 00:00–14:00 UTC · Updated 14:00 UTC</p>'
-    +'<div class="facts three">'+fact('Incoming QPS',number(row.qps))+fact('Fill rate',rate(row.fill))+fact('rCPM',money(row.rcpm))+'</div>'
+    +'<div class="facts three">'+performance+'</div>'
     +'<h3>Continue investigation</h3><div class="dialog-actions"><button class="primary" data-diagnose="Statistics" data-side="'+side+'" data-id="'+safe(row.id)+'">Open Statistics</button><button class="tool" data-diagnose="Loggers" data-side="'+side+'" data-id="'+safe(row.id)+'">Open Loggers</button></div><p class="meta">Pass endpoint, region and period to supported diagnostic routes.</p>');
 }
 function addEndpoint(side) {
@@ -270,7 +309,11 @@ function addEndpoint(side) {
   dialog.querySelector('input').focus();
 }
 function exportCsv(side) {
-  const data = [['Name','ID','Status','Type','Region','Incoming QPS','Fill rate','Win rate','Render rate','rCPM'],...matching(side).map(r=>[r.name,r.id,r.active?'Active':'Inactive',r.type,r.region,r.qps,r.fill,r.win,r.render,r.rcpm])];
+  const [on,off] = statusLabels(side);
+  const rows = matching(side);
+  const data = side==='supply'
+    ? [['Name','ID','Status','Type','Region','Incoming QPS','Fill rate','Win rate','Render rate','rCPM'],...rows.map(r=>[r.name,r.id,r.active?on:off,r.type,r.region,r.qps,r.fill,r.win,r.render,r.rcpm])]
+    : [['Name','ID','Status','Type','Region','Outgoing QPS','% of region','Bid rate','Win rate','Timeout rate','Spend today'],...rows.map(r=>[r.name,r.id,r.active?on:off,r.type,r.region,r.outgoing,regionalShare(r.outgoing,regionalOutgoing.get(r.region),outgoingShareFormat),r.bid,r.win,r.timeout,r.spend])];
   const csv = data.map(row=>row.map(value=>'"'+String(value??'').replace(/^([=+@-])/,"'$1").replaceAll('"','""')+'"').join(',')).join('\r\n');
   const href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   const link = document.createElement('a');

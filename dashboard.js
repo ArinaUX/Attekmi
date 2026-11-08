@@ -56,7 +56,7 @@ const endpointColumns = {
     ['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],['details','Details',10.2],
   ],
   demand: [
-    ['status','Status',8.5],['name','Name / ID',20.65],['type','Type',7],['region','Region',8],
+    ['name','Name / ID',20.65],['status','Status',8.5],['type','Type',7],['region','Region',8],
     ['outgoing','Outgoing QPS',14,'num'],['bid','Bid rate',10.5,'num'],['win','Win rate',10.5,'num'],
     ['timeout','Timeout rate',14,'num'],['spend','Spend today',13,'num'],...demandOptional,['details','Details',10.2],
   ],

@@ -57,7 +57,7 @@ table{border-collapse:collapse;text-align:left;width:100%}
 .limit-tooltip{position:absolute;z-index:2;right:0;bottom:100%;padding-bottom:6px;visibility:hidden}
 .limit-tooltip span{display:block;padding:5px 8px;border-radius:4px;background:var(--ink);color:var(--paper);line-height:16px}
 .limit-tip:not([data-dismissed]):is(:hover,:focus-within) .limit-tooltip{visibility:visible}
-.definition-tip{margin-inline-start:4px;vertical-align:middle}
+.definition-tip{margin-inline-end:4px;vertical-align:middle}
 .definition-tip .limit-tooltip{top:100%;bottom:auto;padding:6px 0 0;width:220px;white-space:normal;text-align:left}
 .metric-info{display:inline-flex;color:var(--blue);cursor:help}
 .metric-info .icon{width:13px;height:13px}
@@ -90,8 +90,6 @@ h1,h2,h3,p{margin:0}
 .search input::placeholder{color:var(--quiet-text);opacity:1}
 .search .trailing,.select-button .trailing{margin-left:auto;color:var(--ink)}
 .select-button{width:146px;justify-content:flex-start}
-.sort-button{width:auto;min-width:161px;white-space:nowrap}
-.sort-button:has(.menu-label){color:var(--secondary)}
 .menu-anchor{position:relative}
 .menu{z-index:3;position:absolute;top:calc(100% + 5px);left:0;min-width:180px;display:grid;gap:4px;background:#fff;border:1px solid var(--field);box-shadow:0 6px 24px #1a11331a;border-radius:6px;padding:8px;color:var(--ink);text-align:left}
 .menu.right{left:auto;right:0}

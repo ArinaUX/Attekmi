@@ -5,7 +5,6 @@ const paths = {
   close: '<path d="m4 4 8 8m0-8-8 8"/>',
   search: '<circle cx="6.7" cy="6.7" r="4.4"/><path d="m10 10 3.5 3.5"/>',
   filter: '<path d="M2 3h12L9 8v4l-2 1V8z"/>',
-  sort: '<path d="M4 2v11m-3-3 3 3 3-3m5 4V3M9 6l3-3 3 3"/>',
   columns: '<path d="M0 2h7m2 0h7M0 6h7m2 0h7M0 10h7m2 0h7M0 14h7m2 0h7"/>',
   external: '<path d="M3 12 12 3M6 3h6v6M2 14h12"/>',
   refresh: '<path d="M13 6a5.5 5.5 0 1 0-1 6M13 2v4H9"/>',
@@ -55,7 +54,7 @@ const endpointColumns = {
     ['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],['details','Details',10.2],
   ],
   demand: [
-    ['status','Status',8.5],['name','Name / ID',20.65],['type','Type',7],['region','Region',8],
+    ['name','Name / ID',20.65],['status','Status',8.5],['type','Type',7],['region','Region',8],
     ['outgoing','Outgoing QPS',12,'num'],['bid','Bid rate',8.5,'num'],['win','Win rate',8.5,'num'],
     ['timeout','Timeout rate',12,'num'],['spend','Spend today',11,'num'],...demandOptional,['details','Details',10.2],
   ],
@@ -64,15 +63,6 @@ const demandDefinitions = {
   outgoing:'Requests per second sent to this DSP. The percentage is its share of the region’s Outgoing QPS in the overview.',
   bid:'Assumption · Bid rate = Bids ÷ Outgoing requests.',
   win:'Assumption · Win rate = Wins ÷ Bids.',
-};
-const sortOptions = {
-  original: {label:'Default order'},
-  name: {label:'Name A–Z', column:'Name', direction:'ascending'},
-  outgoing: {label:'Highest Outgoing QPS', column:'Outgoing QPS', direction:'descending'},
-  bid: {label:'Highest bid rate', column:'Bid rate', direction:'descending'},
-  win: {label:'Highest win rate', column:'Win rate', direction:'descending'},
-  timeout: {label:'Highest timeout rate', column:'Timeout rate', direction:'descending'},
-  spend: {label:'Highest spend today', column:'Spend today', direction:'descending'},
 };
 const regionalTraffic = [
   ['US_EAST',1436,1318,8595,20000,true],['APAC',3846,3612,9876,10000],['EU',2445,2320,6763,10000],
@@ -160,27 +150,22 @@ function renderFinance() {
   updated('finance');
 }
 
-function menuButton(action,text,content,classes='select-button',leading='',side='') {
-  return '<div class="menu-anchor"><button class="'+classes+'" data-menu="'+action+'" aria-label="'+text+'" aria-expanded="false">'+leading+(side==='icon'?'':'<span class="menu-label">'+text+'</span>')+'<span class="trailing">'+icon('chevron')+'</span></button><div class="menu'+(side?' right':'')+'" hidden>'+content+'</div></div>';
+function menuButton(action,text,content,classes,leading,placement='') {
+  return '<div class="menu-anchor"><button class="'+classes+'" data-menu="'+action+'" aria-expanded="false">'+leading+text+'<span class="trailing">'+icon('chevron')+'</span></button><div class="menu'+(placement?' '+placement:'')+'" hidden>'+content+'</div></div>';
 }
 function initEndpoints(side) {
   const section = $('#'+side);
   const title = side==='supply'?'Supply Side':'Demand Side';
   const [on,off] = statusLabels(side);
   const filterItems = '<strong>Region</strong>'+regions.map(r => '<label><input type="checkbox" data-region="'+r+'">'+r+'</label>').join('')+'<strong>Configured status</strong>'+[['all','Any status'],['active',on],['inactive',off]].map(([value,label])=>'<label><input type="radio" name="'+side+'-status" data-status="'+value+'">'+label+'</label>').join('');
-  const sortItems = Object.entries(sortOptions).map(([value,{label}])=>'<button data-sort="'+value+'">'+label+'</button>').join('');
   const columnItems = '<strong>Visible columns</strong>'+endpointColumns[side].filter(([key])=>key!=='name'&&key!=='details').map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'"'+(states[side].hidden.has(key)?'':' checked')+'>'+label+'</label>').join('');
   const columnsMenu = menuButton('columns','Columns',columnItems,'tool',icon('columns'),'right');
   section.innerHTML = '<header class="endpoint-head"><button class="primary add" data-add aria-label="Add '+side+' endpoint">'+icon('plus')+'</button><h2 id="'+side+'-title">'+title+'</h2>'+(side==='demand'?'<span class="badge neutral demo-label">Demo data</span>':'')+'<div class="tools">'+columnsMenu+'<button class="quiet export" data-export>Export '+icon('download')+'</button><button class="quiet icon-button" data-expand aria-label="Expand '+title+'">'+icon('expand')+'</button></div></header>'
-    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+(side==='demand'?menuButton('sort','Sort by',sortItems,'select-button sort-button',icon('sort')):'')+'</div>'
+    +'<div class="controls"><label class="search">'+icon('search')+'<input type="search" placeholder="Search by name or ID" aria-label="Search '+side+' by name or ID"><span class="trailing">'+icon('chevron')+'</span></label>'+menuButton('filter','Filter',filterItems,'select-button',icon('filter'))+'</div>'
     +'<div class="applied"></div><div class="table-scroll table-shell"><table class="endpoint-table" aria-label="'+title+' endpoints"></table></div><div class="pagination"></div>';
   renderEndpoints(side);
 }
 
-function sortDirection(side,state) {
-  if (state.sort==='original') return undefined;
-  return side==='supply'?state.direction:sortOptions[state.sort].direction;
-}
 function matching(side) {
   const state = states[side];
   const query = state.query.trim().toLowerCase();
@@ -188,8 +173,7 @@ function matching(side) {
     (!query || (row.name+' '+row.id).toLowerCase().includes(query)) &&
     (!state.regions.size || state.regions.has(row.region)) &&
     (state.status==='all' || row.active===(state.status==='active')));
-  const direction = sortDirection(side,state);
-  if (direction) {
+  if (state.sort!=='original') {
     const key = state.sort;
     rows.sort((a,b)=>{
       const first = key==='status'?Number(!a.active):a[key];
@@ -197,7 +181,7 @@ function matching(side) {
       if (first==null) return second==null?0:1;
       if (second==null) return -1;
       const comparison = typeof first==='string'?first.localeCompare(second):first-second;
-      return direction==='ascending'?comparison:-comparison;
+      return state.direction==='ascending'?comparison:-comparison;
     });
   }
   return rows;
@@ -236,15 +220,8 @@ function renderEndpoints(side) {
   state.page = Math.min(total,Math.max(1,state.page));
   const shown = rows.slice((state.page-1)*state.size,state.page*state.size);
   const visible = endpointColumns[side].filter(([key])=>!state.hidden.has(key));
-  const supply = side==='supply';
-  const direction = sortDirection(side,state);
+  const direction = state.sort==='original'?null:state.direction;
   const arrow = direction==='ascending'?'↑':'↓';
-  if (!supply) {
-    const {column} = sortOptions[state.sort];
-    const sortButton = section.querySelector('[data-menu="sort"]');
-    sortButton.querySelector('.menu-label').textContent = direction?'Sort: '+column+' '+arrow:'Sort by';
-    sortButton.setAttribute('aria-label',direction?'Sort: '+column+' '+direction:'Sort by');
-  }
   const scrollWeight = visible.reduce((sum,[key,,width])=>sum+(key==='name'?0:width),0);
   const table = section.querySelector('table');
   table.style.setProperty('--scroll-weight',scrollWeight);
@@ -254,12 +231,12 @@ function renderEndpoints(side) {
   table.innerHTML = '<colgroup>'+columnWidths.map(width=>'<col style="width:'+width+'">').join('')+'</colgroup><thead><tr>'+visible.map(([key,label,,align])=>{
     const active = direction && key===state.sort;
     const indicator = '<span class="sort-indicator" aria-hidden="true">'+(active?arrow:'↕')+'</span>';
-    const content = supply && key!=='details'
+    const content = key!=='details'
       ? '<button class="column-sort" data-sort-column="'+key+'" aria-label="'+label+', sort '+(active&&direction==='ascending'?'descending':'ascending')+'">'+label+indicator+'</button>'
-      : label+(active?' '+indicator:'');
-    const definition = !supply && demandDefinitions[key];
+      : label;
+    const definition = side==='demand' && demandDefinitions[key];
     const info = definition?metricTooltip('demand-definition-'+key,icon('info'),definition,'metric-info',label+' definition'):'';
-    return '<th scope="col" class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+content+info+'</th>';
+    return '<th scope="col" class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+info+content+'</th>';
   }).join('')+'</tr></thead><tbody>'
     +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+[align,key==='name'?'pinned-name':''].filter(Boolean).join(' ')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
   bindTooltipDismissal(table);
@@ -392,10 +369,6 @@ document.addEventListener('click', async event => {
     state.direction=state.sort===d.sortColumn && state.direction==='ascending'?'descending':'ascending';
     state.sort=d.sortColumn;
     state.page=1;
-  } else if (d.sort) {
-    state.sort=d.sort;
-    state.page=1;
-    closeMenus();
   } else if (d.page) state.page=Number(d.page);
   else if (d.chip) {
     if (d.chip==='region') state.regions.delete(d.value);
@@ -407,7 +380,6 @@ document.addEventListener('click', async event => {
   } else return;
   renderEndpoints(side);
   if (d.sortColumn) $('#'+side+' [data-sort-column="'+d.sortColumn+'"]').focus({preventScroll:true});
-  if (d.sort) $('#'+side+' [data-menu="sort"]').focus();
 });
 
 document.addEventListener('input',event=>{

@@ -49,14 +49,18 @@ const demandOptional = [
 const defaultHiddenColumns = {supply:['validIncoming'],demand:demandOptional.map(([key])=>key)};
 const states = Object.fromEntries(['supply','demand'].map(side => [side, {query:'',regions:new Set(side==='demand'?regions:[]),status:'active',sort:'original',size:25,page:1,hidden:new Set(defaultHiddenColumns[side])}]));
 const statusLabels = ['On','Off'];
+const identityColumns = [
+  ['name','Name / ID',190],['status','Status',94],['type','Type',77],['region','Region',88],
+];
+const fixedColumnKeys = new Set(identityColumns.map(([key])=>key));
 const endpointColumns = {
   supply: [
-    ['name','Name / ID',20.65],['status','Status',10.2],['type','Type',7],['region','Region',8],
+    ...identityColumns,
     ['qps','Incoming QPS',9.15,'num'],['validRate','Valid rate',10.5,'num'],['validIncoming','Valid QPS',9.15,'num'],['fill','Fill rate',8.2,'num'],['win','Win rate',8,'num'],
     ['render','Render rate',8.6,'num'],['rcpm','rCPM',9,'num'],['details','Details',10.2],
   ],
   demand: [
-    ['name','Name / ID',20.65],['status','Status',8.5],['type','Type',7],['region','Region',8],
+    ...identityColumns,
     ['outgoing','Outgoing QPS',14,'num'],['bid','Bid rate',10.5,'num'],['win','Win rate',10.5,'num'],
     ['timeout','Timeout rate',14,'num'],['spend','Spend today',13,'num'],...demandOptional,['details','Details',10.2],
   ],
@@ -246,11 +250,13 @@ function renderEndpoints(side) {
   const sortSummary = section.querySelector('.sort-summary');
   const sortText = direction?'Sort: '+sortedLabel+' '+arrow:'Sort by column header';
   if (sortSummary.textContent!==sortText) sortSummary.textContent=sortText;
-  const scrollWeight = visible.reduce((sum,[key,,width])=>sum+(key==='name'?0:width),0);
+  const fixedWidth = visible.reduce((sum,[key,,width])=>sum+(fixedColumnKeys.has(key)?width:0),0);
+  const scrollWeight = visible.reduce((sum,[key,,width])=>sum+(fixedColumnKeys.has(key)?0:width),0);
   const table = section.querySelector('table');
+  table.style.setProperty('--fixed-columns-width',fixedWidth+'px');
   table.style.setProperty('--scroll-weight',scrollWeight);
   const columnWidths = visible.map(([key,,width])=>{
-    return key==='name'?'var(--pinned-column)':'calc((var(--table-width) - var(--pinned-column)) * '+(width/scrollWeight)+')';
+    return fixedColumnKeys.has(key)?width+'px':'calc((var(--table-width) - var(--fixed-columns-width)) * '+(width/scrollWeight)+')';
   });
   table.innerHTML = '<colgroup>'+columnWidths.map(width=>'<col style="width:'+width+'">').join('')+'</colgroup><thead><tr>'+visible.map(([key,label,,align])=>{
     const active = direction && key===state.sort;

@@ -118,8 +118,7 @@ h1,h2,h3,p{margin:0}
 .endpoint-name{font-weight:500}
 .endpoints .table-shell{container-type:inline-size;scroll-padding-inline-start:190px}
 .endpoints .endpoint-table{
-  --pinned-column:190px;
-  --table-width:max(100cqw,calc(var(--pinned-column) + var(--scroll-weight) * 10.25px));
+  --table-width:max(100cqw,calc(var(--fixed-columns-width) + var(--scroll-weight) * 10.25px));
   width:var(--table-width);
   min-width:0;
   border-collapse:separate;

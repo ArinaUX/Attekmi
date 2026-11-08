@@ -104,6 +104,8 @@ h1,h2,h3,p{margin:0}
 .endpoint-table .num{text-align:right}
 .endpoint-name{font-weight:500}
 .endpoint-id{display:block;color:var(--secondary);font-size:12px;line-height:16px}
+.load-share{white-space:normal}
+.load-share strong{color:var(--ink);font-weight:600}
 .status-switch{color:var(--quiet-text);gap:5px}
 .switch-track{display:inline-flex;align-items:center;width:32px;height:16px;padding:2px;border-radius:10px;background:#a2a1ad}
 .switch-track::before{content:"";height:12px;width:12px;border-radius:50%;background:#fff}

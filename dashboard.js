@@ -52,10 +52,13 @@ const sortOptions = {
   fill: {label:'Highest fill rate', column:'Fill rate', direction:'descending'},
   rcpm: {label:'Highest rCPM', column:'rCPM', direction:'descending'},
 };
+const regionalTraffic = [
+  ['US_EAST',1436,1318,8595,20000,true],['APAC',3846,3612,9876,10000],['EU',2445,2320,6763,10000],
+];
+const regionalIncoming = new Map(regionalTraffic.map(([region,incoming])=>[region,incoming]));
+const shareFormat = new Intl.NumberFormat('en-US',{style:'percent',maximumFractionDigits:2});
 const trafficViews = [
-  {name:'Regions',icon:'region',first:'Region',rows:[
-    ['US_EAST',1436,1318,8595,20000,true],['APAC',3846,3612,9876,10000],['EU',2445,2320,6763,10000],
-  ]},
+  {name:'Regions',icon:'region',first:'Region',rows:regionalTraffic},
   {name:'Traffic Types',icon:'statistics',first:'Traffic type',rows:[
     ['RTB',4980,4650,15321],['VAST',1841,1730,6467],['Prebid',906,870,3446],
   ]},
@@ -139,12 +142,24 @@ function matching(side) {
   else if (direction==='descending') rows.sort((a,b)=>(b[state.sort]??-Infinity)-(a[state.sort]??-Infinity));
   return rows;
 }
-function rowCell(key,row) {
+function incomingQpsCell(row,side) {
+  const value = number(row.qps);
+  if (side!=='supply') return value;
+
+  const total = regionalIncoming.get(row.region);
+  if (row.qps==null || !(total>0)) {
+    return value+'<span class="endpoint-id load-share">Share unavailable</span>';
+  }
+  const share = shareFormat.format(row.qps/total);
+  return value+'<span class="endpoint-id load-share"><strong>'+share+'</strong> of total load</span>';
+}
+
+function rowCell(key,row,side) {
   const id = safe(row.id);
   const cells = {
     name:'<button class="link endpoint-name" data-inspect="'+id+'">'+safe(row.name)+'</button><span class="endpoint-id">'+id+'</span>',
     status:'<button class="status-switch" role="switch" aria-checked="'+row.active+'" aria-label="'+safe(row.name)+' configured status" data-toggle="'+id+'"><span class="switch-track"></span>'+(row.active?'Active':'Inactive')+'</button>',
-    type:safe(row.type),region:safe(row.region),qps:number(row.qps),fill:rate(row.fill),win:rate(row.win),render:rate(row.render),rcpm:money(row.rcpm),
+    type:safe(row.type),region:safe(row.region),qps:incomingQpsCell(row,side),fill:rate(row.fill),win:rate(row.win),render:rate(row.render),rcpm:money(row.rcpm),
     details:'<button class="quiet inspect" data-inspect="'+id+'" aria-label="Inspect '+safe(row.name)+'">Inspect</button>',
   };
   return cells[key];
@@ -164,7 +179,7 @@ function renderEndpoints(side) {
     const active = direction && key===state.sort;
     return '<th scope="col" class="'+(align??'')+'"'+(active?' aria-sort="'+direction+'"':'')+'>'+label+(active?' <span class="sort-indicator" aria-hidden="true">'+arrow+'</span>':'')+'</th>';
   }).join('')+'</tr></thead><tbody>'
-    +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+(align??'')+'">'+rowCell(key,row)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
+    +(shown.length?shown.map(row=>'<tr>'+visible.map(([key,,,align])=>'<td class="'+(align??'')+'">'+rowCell(key,row,side)+'</td>').join('')+'</tr>').join(''):'<tr><td class="empty" colspan="'+visible.length+'">No matching endpoints</td></tr>')+'</tbody>';
   const chip = (key,value,label) => '<button class="chip" data-chip="'+key+'" data-value="'+safe(value)+'" aria-label="Remove '+safe(label)+' filter">'+safe(label)+icon('close')+'</button>';
   section.querySelector('.applied').innerHTML = '<span class="match" aria-live="polite">'+rows.length+' matching endpoint'+(rows.length===1?'':'s')+'</span>'
     +[...state.regions].map(r=>chip('region',r,'Region: '+r)).join('')

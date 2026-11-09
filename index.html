@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>Attekmi · Dashboard prototype</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=turn-off-dialog">
   <script defer src="icons.js"></script>
-  <script defer src="dashboard.js"></script>
+  <script defer src="dashboard.js?v=turn-off-dialog"></script>
 </head>
 <body>
   <header class="global">
@@ -15,13 +15,13 @@
     <nav aria-label="Main navigation" id="navigation"></nav>
   </header>
   <div class="application">
-    <aside class="sidebar" aria-label="Utility navigation" id="sidebar"></aside>
+    <aside class="sidebar" aria-hidden="true" id="sidebar"></aside>
     <main class="workspace" aria-label="Attekmi dashboard">
       <div class="overview">
         <section class="panel monitoring" aria-label="Traffic overview">
           <div class="tabs" id="traffic-tabs" role="tablist" aria-label="Traffic view"></div>
           <div class="table-scroll" id="traffic-content" role="tabpanel"></div>
-          <div class="panel-foot"><span>60-second snapshot</span><span id="traffic-updated"></span></div>
+          <div class="panel-foot" id="traffic-foot"><span>60-second snapshot</span><span id="traffic-updated"></span></div>
         </section>
         <section class="panel finance" aria-label="Financial comparison">
           <div class="finance-head">

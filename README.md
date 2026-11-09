@@ -20,3 +20,9 @@ Import the GitHub repository, keep the framework preset as **Other**, and deploy
 - Change visible columns, download a CSV, toggle configured status, and add a sample endpoint in the current session.
 
 Wix Madefor Display is distributed under the included SIL Open Font License.
+
+## Table design hypothesis
+
+Both endpoint tables start with **Name / ID → Status**, reversing the original ON/OFF-first order. The hypothesis is that operators identify an endpoint before acting on it, so the name anchors scanning and the switch stays adjacent. Both columns remain pinned during horizontal scrolling.
+
+Ad Formats and the new Supply Daily Spend values are demo fixtures. The optional Supply “%” field has no confirmed definition and shows a dash. Demand Timeout rate uses demo values and its tooltip notes that platform availability is unconfirmed.

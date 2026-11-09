@@ -2,6 +2,7 @@
 
 const paths = {
   plus: '<path d="M8 2v12M2 8h12"/>',
+  check: '<path d="m3 8 3 3 7-7"/>',
   close: '<path d="m4 4 8 8m0-8-8 8"/>',
   search: '<circle cx="6.7" cy="6.7" r="4.4"/><path d="m10 10 3.5 3.5"/>',
   pageChevron: '<path d="m6 3 5 5-5 5"/>',
@@ -228,7 +229,7 @@ function initEndpoints(side) {
   const section = $('#'+side);
   const title = side==='supply'?'Supply Side':'Demand Side';
   const filterItems = '<strong>Region</strong>'+regions.map(region=>'<label><input type="checkbox" data-region="'+region+'">'+region+'</label>').join('')
-    +'<strong>Type</strong>'+types.map(type=>'<label><input type="checkbox" data-type="'+type+'">'+type+'</label>').join('');
+    +'<strong>Type</strong>'+(side==='supply'?supplyConnectionTypes:types).map(type=>'<label><input type="checkbox" data-type="'+type+'">'+type+'</label>').join('');
   const columnItems = '<div class="column-menu-head"><strong>Visible columns</strong><button type="button" class="reset-columns" data-reset-columns>'+icon('refresh')+'Reset to default</button></div><div class="column-menu-groups">'
     +endpointGroups[side].map(([group,columns])=>'<fieldset><legend>'+group+'</legend>'
       +columns.map(([key,label])=>'<label><input type="checkbox" data-column="'+key+'"'+(lockedColumns.has(key)?' disabled':'')+'>'+label+'</label>').join('')
@@ -285,7 +286,7 @@ const secondary = value => '<span class="endpoint-id load-share">'+safe(value)+'
 function metricText(key,row,side) {
   switch (key) {
     case 'status': return row.active?statusLabels[0]:statusLabels[1];
-    case 'adFormats': return sampleFormats.get(row.id) ?? '—';
+    case 'adFormats': return row.formats?.join(', ') || sampleFormats.get(row.id) || '—';
     case 'qps': case 'validIncoming': case 'outgoing': case 'bids': return number(row[key]);
     case 'win': return side==='demand'?percentage(row.winRate):rate(row.win);
     case 'timeout': return percentage(row.timeoutRate)+(row.timeoutRate>0.05?' · High':'');
@@ -530,7 +531,11 @@ document.addEventListener('click', async event => {
     if (!dialog.open) dialogTrigger = button;
     return inspect(side,endpointLists[side].find(row=>row.id===d.inspect));
   }
-  if (d.add!==undefined) return addEndpoint(side);
+  if (d.add!==undefined) {
+    if (side==='demand') return addEndpoint(side);
+    if (document.fullscreenElement) await document.exitFullscreen();
+    return openSupplyEditor(button);
+  }
   if (d.export!==undefined) return exportCsv(side);
   if (d.expand!==undefined) {
     try {
@@ -597,11 +602,21 @@ document.addEventListener('submit',event=>{
   const name=String(fields.get('name')).trim();
   if (!name) return;
   const id=(side==='supply'?'SSP':'DSP')+'-DEMO-'+(endpointLists[side].length+1);
-  endpointLists[side].unshift({name,id,type:fields.get('type'),region:fields.get('region'),active:true,qps:null,fill:null,win:null,render:null,rcpm:null});
+  const row = {name,id,type:fields.get('type'),region:fields.get('region'),active:true,qps:null,fill:null,win:null,render:null,rcpm:null};
+  if (side==='supply') {
+    row.active = fields.has('active');
+    row.formats = fields.getAll('formats');
+    row.margin = Number(fields.get('margin'));
+    row.spendLimit = fields.get('spendLimit')===''?null:Number(fields.get('spendLimit'));
+    row.settings = fields;
+  }
+  endpointLists[side].unshift(row);
   const state=states[side];
   state.query='';state.regions.clear();state.types.clear();state.sort='original';state.page=1;
   $('#'+side+' input[type=search]').value='';
-  dialog.close();renderEndpoints(side);toast('Demo endpoint added');
+  if (side==='supply') closeSupplyEditor();
+  else dialog.close();
+  renderEndpoints(side);toast('Demo endpoint added');
 });
 document.addEventListener('keydown',event=>{
   const tab=event.target.closest('[data-tab]');
@@ -613,6 +628,7 @@ document.addEventListener('keydown',event=>{
     selectTab(tab.dataset.tab,next);
   } else if (event.key==='Escape') {
     if (activeTip?.isConnected) {
+      if (activeTip.closest('#supply-editor')) event.preventDefault();
       activeTip.setAttribute('data-dismissed','');
       activeTip.lastElementChild.hidePopover();
       activeTip = undefined;
